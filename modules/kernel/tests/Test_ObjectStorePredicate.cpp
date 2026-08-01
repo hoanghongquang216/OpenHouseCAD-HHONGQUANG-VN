@@ -17,7 +17,12 @@ int main()
             return true;
         });
 
-    assert(result.size() == 2);
+    assert(result.Size() == 2);
+
+    for (auto* vertex : result)
+    {
+        assert(vertex != nullptr);
+    }
 
     return 0;
 }
