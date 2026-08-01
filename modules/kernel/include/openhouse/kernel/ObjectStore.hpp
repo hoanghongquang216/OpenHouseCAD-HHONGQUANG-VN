@@ -2,18 +2,16 @@
 
 #include <memory>
 #include <stdexcept>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 
+#include <openhouse/kernel/Entity.hpp>
+#include <openhouse/kernel/Handle.hpp>
 #include <openhouse/kernel/ObjectId.hpp>
 
 namespace openhouse::kernel
 {
-
-class Entity;
-
-template<class T>
-class Handle;
 
 class ObjectStore
 {
@@ -23,6 +21,8 @@ public:
     template<class T, class... Args>
     T* Create(ObjectId id, Args&&... args)
     {
+        static_assert(std::is_base_of_v<Entity, T>);
+
         if (Contains(id))
         {
             throw std::runtime_error("ObjectId already exists");
@@ -32,6 +32,13 @@ public:
         auto pointer = object.get();
         objects_.emplace(id, std::move(object));
         return pointer;
+    }
+
+    template<class T>
+    Handle<T> Get(ObjectId id) const
+    {
+        auto* entity = Find(id);
+        return Handle<T>(dynamic_cast<T*>(entity));
     }
 
     bool Contains(ObjectId id) const
