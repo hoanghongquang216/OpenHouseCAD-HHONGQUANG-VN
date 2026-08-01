@@ -6,6 +6,7 @@ endfunction()
 
 add_kernel_test(kernel_objectid_test Test_ObjectId.cpp)
 add_kernel_test(kernel_objectstore_test Test_ObjectStore.cpp)
+add_kernel_test(kernel_objectstore_duplicate_id_test Test_ObjectStoreDuplicateId.cpp)
 add_kernel_test(kernel_topology_test Test_TopologyConnectivity.cpp)
 add_kernel_test(kernel_validation_test Test_Validation.cpp)
 add_kernel_test(kernel_topology_validation_test Test_TopologyValidation.cpp)
