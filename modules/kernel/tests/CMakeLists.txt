@@ -5,6 +5,7 @@ function(add_kernel_test target source)
 endfunction()
 
 add_kernel_test(kernel_objectid_test Test_ObjectId.cpp)
+add_kernel_test(kernel_objectid_generator_test Test_ObjectIdGenerator.cpp)
 add_kernel_test(kernel_objectstore_test Test_ObjectStore.cpp)
 add_kernel_test(kernel_objectstore_duplicate_id_test Test_ObjectStoreDuplicateId.cpp)
 add_kernel_test(kernel_topology_test Test_TopologyConnectivity.cpp)
