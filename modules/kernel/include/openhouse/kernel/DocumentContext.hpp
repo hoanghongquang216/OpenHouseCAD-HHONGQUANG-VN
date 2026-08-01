@@ -29,12 +29,27 @@ public:
 
     State CurrentState() const
     {
-        return state_; 
+        return state_;
     }
 
     void SetState(State state)
     {
         state_ = state;
+    }
+
+    bool IsModified() const
+    {
+        return modified_;
+    }
+
+    void MarkModified()
+    {
+        modified_ = true;
+    }
+
+    void MarkSaved()
+    {
+        modified_ = false;
     }
 
     ObjectStore& Objects()
@@ -50,11 +65,13 @@ public:
     void Clear()
     {
         objects_.Clear();
+        modified_ = false;
     }
 
 private:
     DocumentId id_;
     State state_{State::Created};
+    bool modified_{false};
     ObjectStore objects_;
 };
 
