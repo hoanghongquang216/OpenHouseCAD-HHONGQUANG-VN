@@ -1,14 +1,14 @@
 #pragma once
 
-#include <vector>
+#include <openhouse/kernel/QueryResult.hpp>
 
 namespace openhouse::kernel
 {
 
 template<class T, class Store, class Predicate>
-std::vector<T*> FindIf(Store& store, Predicate&& predicate)
+QueryResult<T> FindIf(Store& store, Predicate&& predicate)
 {
-    std::vector<T*> result;
+    typename QueryResult<T>::Container result;
 
     for (auto& item : store)
     {
@@ -21,7 +21,7 @@ std::vector<T*> FindIf(Store& store, Predicate&& predicate)
         }
     }
 
-    return result;
+    return QueryResult<T>(std::move(result));
 }
 
 }
