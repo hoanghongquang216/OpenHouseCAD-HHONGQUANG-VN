@@ -10,9 +10,19 @@ namespace openhouse::kernel
 class Transaction
 {
 public:
+    enum class State
+    {
+        Active,
+        Committed,
+        RolledBack
+    };
+
     void Record(ChangeRecord change)
     {
-        changes_.push_back(change);
+        if (state_ == State::Active)
+        {
+            changes_.push_back(change);
+        }
     }
 
     std::size_t ChangeCount() const
@@ -22,22 +32,27 @@ public:
 
     void Commit()
     {
-        committed_ = true;
+        state_ = State::Committed;
     }
 
     void Rollback()
     {
-        committed_ = false;
+        state_ = State::RolledBack;
         changes_.clear();
     }
 
     bool IsCommitted() const
     {
-        return committed_;
+        return state_ == State::Committed;
+    }
+
+    bool IsActive() const
+    {
+        return state_ == State::Active;
     }
 
 private:
-    bool committed_{false};
+    State state_{State::Active};
     std::vector<ChangeRecord> changes_;
 };
 
