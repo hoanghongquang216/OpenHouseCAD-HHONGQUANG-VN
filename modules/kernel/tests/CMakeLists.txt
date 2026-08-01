@@ -1,0 +1,10 @@
+function(add_kernel_test target source)
+    add_executable(${target} ${source})
+    target_link_libraries(${target} PRIVATE openhouse_kernel)
+    add_test(NAME ${target} COMMAND ${target})
+endfunction()
+
+add_kernel_test(kernel_objectstore_test Test_ObjectStore.cpp)
+add_kernel_test(kernel_topology_test Test_TopologyConnectivity.cpp)
+add_kernel_test(kernel_validation_test Test_Validation.cpp)
+add_kernel_test(kernel_topology_validation_test Test_TopologyValidation.cpp)
