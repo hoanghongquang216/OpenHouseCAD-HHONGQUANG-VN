@@ -58,6 +58,14 @@ public:
         return TransactionScope{};
     }
 
+    void RecordChange(TransactionScope& transaction)
+    {
+        if (transaction.ChangeCount() > 0)
+        {
+            MarkModified();
+        }
+    }
+
     ObjectStore& Objects()
     {
         return objects_;
