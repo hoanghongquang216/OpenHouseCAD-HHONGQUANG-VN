@@ -8,9 +8,5 @@ target_include_directories(
 
 if(OPENHOUSECAD_BUILD_TESTS)
     enable_testing()
-
-    add_executable(kernel_objectstore_test tests/Test_ObjectStore.cpp)
-    target_link_libraries(kernel_objectstore_test PRIVATE openhouse_kernel)
-
-    add_test(NAME kernel_objectstore_test COMMAND kernel_objectstore_test)
+    add_subdirectory(tests)
 endif()
