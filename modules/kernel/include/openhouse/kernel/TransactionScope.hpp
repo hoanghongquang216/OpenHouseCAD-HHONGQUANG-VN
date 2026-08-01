@@ -10,12 +10,20 @@ namespace openhouse::kernel
 class TransactionScope
 {
 public:
-    TransactionScope()
-        : transaction_()
-    {
-    }
+    TransactionScope() = default;
+
+    TransactionScope(const TransactionScope&) = delete;
+    TransactionScope& operator=(const TransactionScope&) = delete;
+
+    TransactionScope(TransactionScope&&) = default;
+    TransactionScope& operator=(TransactionScope&&) = default;
 
     Transaction& Current()
+    {
+        return transaction_;
+    }
+
+    const Transaction& Current() const
     {
         return transaction_;
     }
