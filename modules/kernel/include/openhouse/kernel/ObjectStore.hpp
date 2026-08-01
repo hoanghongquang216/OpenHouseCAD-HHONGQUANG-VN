@@ -9,6 +9,7 @@
 #include <openhouse/kernel/Entity.hpp>
 #include <openhouse/kernel/Handle.hpp>
 #include <openhouse/kernel/ObjectId.hpp>
+#include <openhouse/kernel/ObjectIdGenerator.hpp>
 
 namespace openhouse::kernel
 {
@@ -17,6 +18,12 @@ class ObjectStore
 {
 public:
     ObjectStore() = default;
+
+    template<class T, class... Args>
+    T* Create(Args&&... args)
+    {
+        return Create<T>(idGenerator_.Next(), std::forward<Args>(args)...);
+    }
 
     template<class T, class... Args>
     T* Create(ObjectId id, Args&&... args)
@@ -58,6 +65,7 @@ public:
     }
 
 private:
+    ObjectIdGenerator idGenerator_;
     std::unordered_map<ObjectId, std::unique_ptr<Entity>> objects_;
 };
 
