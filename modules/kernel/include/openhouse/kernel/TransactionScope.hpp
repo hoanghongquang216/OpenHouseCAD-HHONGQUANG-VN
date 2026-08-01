@@ -18,6 +18,14 @@ public:
     TransactionScope(TransactionScope&&) = default;
     TransactionScope& operator=(TransactionScope&&) = default;
 
+    ~TransactionScope()
+    {
+        if (transaction_.IsActive())
+        {
+            transaction_.Rollback();
+        }
+    }
+
     Transaction& Current()
     {
         return transaction_;
