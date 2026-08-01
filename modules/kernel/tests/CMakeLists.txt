@@ -4,6 +4,7 @@ function(add_kernel_test target source)
     add_test(NAME ${target} COMMAND ${target})
 endfunction()
 
+add_kernel_test(kernel_objectid_test Test_ObjectId.cpp)
 add_kernel_test(kernel_objectstore_test Test_ObjectStore.cpp)
 add_kernel_test(kernel_topology_test Test_TopologyConnectivity.cpp)
 add_kernel_test(kernel_validation_test Test_Validation.cpp)
