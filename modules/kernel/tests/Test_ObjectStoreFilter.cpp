@@ -13,7 +13,12 @@ int main()
 
     auto vertices = openhouse::kernel::FindAll<openhouse::kernel::Vertex>(store);
 
-    assert(vertices.size() == 2);
+    assert(vertices.Size() == 2);
+
+    for (auto* vertex : vertices)
+    {
+        assert(vertex != nullptr);
+    }
 
     return 0;
 }
