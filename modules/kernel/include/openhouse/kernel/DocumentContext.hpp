@@ -1,5 +1,6 @@
 #pragma once
 
+#include <openhouse/kernel/DocumentId.hpp>
 #include <openhouse/kernel/ObjectStore.hpp>
 
 namespace openhouse::kernel
@@ -8,7 +9,15 @@ namespace openhouse::kernel
 class DocumentContext
 {
 public:
-    DocumentContext() = default;
+    explicit DocumentContext(DocumentId id = DocumentId{})
+        : id_(id)
+    {
+    }
+
+    DocumentId Id() const
+    {
+        return id_;
+    }
 
     ObjectStore& Objects()
     {
@@ -26,6 +35,7 @@ public:
     }
 
 private:
+    DocumentId id_;
     ObjectStore objects_;
 };
 
