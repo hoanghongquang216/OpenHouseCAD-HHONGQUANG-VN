@@ -1,14 +1,14 @@
 #pragma once
 
-#include <vector>
+#include <openhouse/kernel/QueryResult.hpp>
 
 namespace openhouse::kernel
 {
 
 template<class T, class Store>
-std::vector<T*> FindAll(Store& store)
+QueryResult<T> FindAll(Store& store)
 {
-    std::vector<T*> result;
+    typename QueryResult<T>::Container result;
 
     for (auto& item : store)
     {
@@ -18,13 +18,13 @@ std::vector<T*> FindAll(Store& store)
         }
     }
 
-    return result;
+    return QueryResult<T>(std::move(result));
 }
 
 template<class T, class Store>
-std::vector<const T*> FindAll(const Store& store)
+QueryResult<const T> FindAll(const Store& store)
 {
-    std::vector<const T*> result;
+    typename QueryResult<const T>::Container result;
 
     for (const auto& item : store)
     {
@@ -34,7 +34,7 @@ std::vector<const T*> FindAll(const Store& store)
         }
     }
 
-    return result;
+    return QueryResult<const T>(std::move(result));
 }
 
 }
