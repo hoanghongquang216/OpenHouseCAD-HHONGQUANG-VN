@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include <openhouse/kernel/Transaction.hpp>
 
 namespace openhouse::kernel
@@ -16,6 +18,16 @@ public:
     Transaction& Current()
     {
         return transaction_;
+    }
+
+    void Record(ChangeRecord change)
+    {
+        transaction_.Record(change);
+    }
+
+    std::size_t ChangeCount() const
+    {
+        return transaction_.ChangeCount();
     }
 
     void Commit()
