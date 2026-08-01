@@ -1,12 +1,17 @@
 #pragma once
 
-#include <openhouse/kernel/Entity.hpp>
+#include <openhouse/kernel/TopologyEntity.hpp>
 
 namespace openhouse::kernel
 {
-class Edge : public Entity
+
+class Edge : public TopologyEntity
 {
 public:
-    explicit Edge(ObjectId id) : Entity(id) {}
+    explicit Edge(ObjectId id)
+        : TopologyEntity(id)
+    {
+    }
 };
+
 }
