@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 namespace openhouse::kernel
@@ -26,6 +27,11 @@ public:
         return values_.size();
     }
 
+    bool Empty() const
+    {
+        return values_.empty();
+    }
+
     Iterator begin()
     {
         return values_.begin();
@@ -44,6 +50,11 @@ public:
     ConstIterator end() const
     {
         return values_.end();
+    }
+
+    const T* operator[](std::size_t index) const
+    {
+        return values_[index];
     }
 
 private:
