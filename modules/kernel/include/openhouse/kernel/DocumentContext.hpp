@@ -2,6 +2,7 @@
 
 #include <openhouse/kernel/DocumentId.hpp>
 #include <openhouse/kernel/ObjectStore.hpp>
+#include <openhouse/kernel/TransactionScope.hpp>
 
 namespace openhouse::kernel
 {
@@ -50,6 +51,11 @@ public:
     void MarkSaved()
     {
         modified_ = false;
+    }
+
+    TransactionScope BeginTransaction()
+    {
+        return TransactionScope{};
     }
 
     ObjectStore& Objects()
