@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 namespace openhouse::kernel
 {
 
@@ -19,14 +21,29 @@ public:
         return value_ != nullptr;
     }
 
+    explicit operator bool() const
+    {
+        return IsValid();
+    }
+
     T* Get() const
     {
         return value_;
     }
 
+    T& operator*() const
+    {
+        return *value_;
+    }
+
     T* operator->() const
     {
         return value_;
+    }
+
+    void Reset()
+    {
+        value_ = nullptr;
     }
 
 private:
