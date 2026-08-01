@@ -59,6 +59,16 @@ public:
         return iterator == objects_.end() ? nullptr : iterator->second.get();
     }
 
+    bool Remove(ObjectId id)
+    {
+        return objects_.erase(id) > 0;
+    }
+
+    void Clear()
+    {
+        objects_.clear();
+    }
+
     std::size_t Size() const
     {
         return objects_.size();
