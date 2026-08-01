@@ -9,6 +9,14 @@ namespace openhouse::kernel
 class DocumentContext
 {
 public:
+    enum class State
+    {
+        Created,
+        Loaded,
+        Modified,
+        Closed
+    };
+
     explicit DocumentContext(DocumentId id = DocumentId{})
         : id_(id)
     {
@@ -17,6 +25,16 @@ public:
     DocumentId Id() const
     {
         return id_;
+    }
+
+    State CurrentState() const
+    {
+        return state_; 
+    }
+
+    void SetState(State state)
+    {
+        state_ = state;
     }
 
     ObjectStore& Objects()
@@ -36,6 +54,7 @@ public:
 
 private:
     DocumentId id_;
+    State state_{State::Created};
     ObjectStore objects_;
 };
 
