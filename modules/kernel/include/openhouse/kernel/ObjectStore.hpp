@@ -17,6 +17,10 @@ namespace openhouse::kernel
 class ObjectStore
 {
 public:
+    using Container = std::unordered_map<ObjectId, std::unique_ptr<Entity>>;
+    using Iterator = Container::iterator;
+    using ConstIterator = Container::const_iterator;
+
     ObjectStore() = default;
 
     template<class T, class... Args>
@@ -69,6 +73,26 @@ public:
         objects_.clear();
     }
 
+    Iterator begin()
+    {
+        return objects_.begin();
+    }
+
+    Iterator end()
+    {
+        return objects_.end();
+    }
+
+    ConstIterator begin() const
+    {
+        return objects_.begin();
+    }
+
+    ConstIterator end() const
+    {
+        return objects_.end();
+    }
+
     std::size_t Size() const
     {
         return objects_.size();
@@ -76,7 +100,7 @@ public:
 
 private:
     ObjectIdGenerator idGenerator_;
-    std::unordered_map<ObjectId, std::unique_ptr<Entity>> objects_;
+    Container objects_;
 };
 
 }
