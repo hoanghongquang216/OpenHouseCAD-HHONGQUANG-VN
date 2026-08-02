@@ -16,29 +16,36 @@ int main()
     assert(!history.CanUndo());
     assert(!history.CanRedo());
 
-    EntitySnapshot beforeEntity(EntityId{}, EntityType{});
-    EntityStateSnapshot before(beforeEntity);
-    before.AddProperty(PropertySnapshot("Height", "3000"));
+    ModelStore store;
+    EntityId id = store.Create(EntityType{});
 
-    EntitySnapshot afterEntity(EntityId{}, EntityType{});
-    EntityStateSnapshot after(afterEntity);
-    after.AddProperty(PropertySnapshot("Height", "3500"));
+    Entity* entity = store.Find(id);
+    assert(entity != nullptr);
+
+    entity->Properties().Add(Property("Height", "3000"));
+
+    EntityStateSnapshot before = entity->Snapshot();
+
+    entity->Properties().All()[0].SetValue("3500");
+
+    EntityStateSnapshot after = entity->Snapshot();
 
     TransactionChange change(
         ChangeOperation::Modify,
-        EntityId{},
+        id,
         before,
         after);
 
     assert(change.Before().Properties()[0].Value() == "3000");
     assert(change.After().Properties()[0].Value() == "3500");
 
-    // Executor wiring validation point.
-    // Full runtime assertion requires a populated ModelStore entity.
-    ModelStore store;
     TransactionExecutor executor(store);
 
-    (void)executor;
+    assert(executor.ApplyUndo(change));
+    assert(entity->Properties().All()[0].Value() == "3000");
+
+    assert(executor.ApplyRedo(change));
+    assert(entity->Properties().All()[0].Value() == "3500");
 
     return 0;
 }
