@@ -38,10 +38,7 @@ public:
 
     void Restore(const EntityStateSnapshot& snapshot)
     {
-        properties_.Clear();
-        // Property restoration will be connected after snapshot property
-        // conversion is implemented.
-        (void)snapshot;
+        properties_.RestoreSnapshots(snapshot.Properties());
     }
 
 private:
