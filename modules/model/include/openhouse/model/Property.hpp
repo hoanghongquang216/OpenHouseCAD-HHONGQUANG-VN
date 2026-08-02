@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 
 namespace openhouse::model
 {
@@ -23,6 +24,11 @@ public:
     const std::string& Value() const
     {
         return value_;
+    }
+
+    void SetValue(std::string value)
+    {
+        value_ = std::move(value);
     }
 
 private:
