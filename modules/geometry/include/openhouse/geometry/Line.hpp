@@ -39,6 +39,16 @@ public:
         return start_ + (end_ - start_) * parameter;
     }
 
+    Point3D MidPoint() const
+    {
+        return Evaluate(0.5);
+    }
+
+    bool IsValid() const
+    {
+        return Length() > 0.0;
+    }
+
 private:
     Point3D start_;
     Point3D end_;
