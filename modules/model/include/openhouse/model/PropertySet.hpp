@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <utility>
 
 #include <openhouse/model/Property.hpp>
 
@@ -13,6 +14,21 @@ public:
     void Add(Property property)
     {
         properties_.push_back(std::move(property));
+    }
+
+    void Clear()
+    {
+        properties_.clear();
+    }
+
+    void Restore(std::vector<Property> properties)
+    {
+        properties_ = std::move(properties);
+    }
+
+    const std::vector<Property>& All() const
+    {
+        return properties_;
     }
 
     std::size_t Count() const
