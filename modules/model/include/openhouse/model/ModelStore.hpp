@@ -30,11 +30,15 @@ public:
 
     bool Restore(const EntityStateSnapshot& snapshot)
     {
-        // Snapshot application is intentionally a boundary.
-        // Entity property restoration will be implemented with the
-        // complete property storage model.
-        (void)snapshot;
-        return false;
+        Entity* entity = registry_.Find(snapshot.Entity().Id());
+
+        if (entity == nullptr)
+        {
+            return false;
+        }
+
+        entity->Restore(snapshot);
+        return true;
     }
 
     Entity* Find(EntityId id)
