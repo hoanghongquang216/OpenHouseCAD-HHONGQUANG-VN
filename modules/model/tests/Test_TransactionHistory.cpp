@@ -1,7 +1,7 @@
 #include <cassert>
 
 #include <openhouse/model/HistoryManager.hpp>
-#include <openhouse/model/TransactionExecutor.hpp>
+#include <openhouse/model/PropertySnapshot.hpp>
 #include <openhouse/model/EntityStateSnapshot.hpp>
 #include <openhouse/model/EntitySnapshot.hpp>
 
@@ -14,23 +14,20 @@ int main()
     assert(!history.CanUndo());
     assert(!history.CanRedo());
 
-    // Verification scenario:
-    // Create Entity
-    // Add property state
-    // Capture Before snapshot
-    // Modify
-    // Commit HistoryEntry
-    // Undo -> restore Before state
-    // Redo -> restore After state
-
     EntitySnapshot beforeEntity(EntityId{}, EntityType{});
     EntityStateSnapshot before(beforeEntity);
+    before.AddProperty(PropertySnapshot("Height", "3000"));
 
     EntitySnapshot afterEntity(EntityId{}, EntityType{});
     EntityStateSnapshot after(afterEntity);
+    after.AddProperty(PropertySnapshot("Height", "3500"));
 
-    (void)before;
-    (void)after;
+    assert(before.Properties().size() == 1);
+    assert(after.Properties().size() == 1);
+    assert(before.Properties()[0].Value() == "3000");
+    assert(after.Properties()[0].Value() == "3500");
+
+    // Next step: connect TransactionChange + Executor execution.
 
     return 0;
 }
