@@ -2,6 +2,7 @@
 
 #include <openhouse/kernel/DocumentId.hpp>
 #include <openhouse/kernel/ObjectStore.hpp>
+#include <openhouse/kernel/TransactionResult.hpp>
 #include <openhouse/kernel/TransactionScope.hpp>
 
 namespace openhouse::kernel
@@ -23,39 +24,33 @@ public:
     {
     }
 
-    DocumentId Id() const
-    {
-        return id_;
-    }
+    DocumentId Id() const { return id_; }
 
-    State CurrentState() const
-    {
-        return state_;
-    }
+    State CurrentState() const { return state_; }
 
-    void SetState(State state)
-    {
-        state_ = state;
-    }
+    void SetState(State state) { state_ = state; }
 
-    bool IsModified() const
-    {
-        return modified_;
-    }
+    bool IsModified() const { return modified_; }
 
-    void MarkModified()
-    {
-        modified_ = true;
-    }
+    void MarkModified() { modified_ = true; }
 
-    void MarkSaved()
-    {
-        modified_ = false;
-    }
+    void MarkSaved() { modified_ = false; }
 
     TransactionScope BeginTransaction()
     {
         return TransactionScope{};
+    }
+
+    TransactionResult CommitTransaction(TransactionScope& transaction)
+    {
+        auto result = transaction.Commit();
+
+        if (result.Success() && result.ChangeCount() > 0)
+        {
+            MarkModified();
+        }
+
+        return result;
     }
 
     void RecordChange(TransactionScope& transaction)
@@ -66,15 +61,9 @@ public:
         }
     }
 
-    ObjectStore& Objects()
-    {
-        return objects_;
-    }
+    ObjectStore& Objects() { return objects_; }
 
-    const ObjectStore& Objects() const
-    {
-        return objects_;
-    }
+    const ObjectStore& Objects() const { return objects_; }
 
     void Clear()
     {
