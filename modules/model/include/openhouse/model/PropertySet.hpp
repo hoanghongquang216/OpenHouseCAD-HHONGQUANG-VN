@@ -4,6 +4,7 @@
 #include <utility>
 
 #include <openhouse/model/Property.hpp>
+#include <openhouse/model/PropertySnapshot.hpp>
 
 namespace openhouse::model
 {
@@ -24,6 +25,16 @@ public:
     void Restore(std::vector<Property> properties)
     {
         properties_ = std::move(properties);
+    }
+
+    void RestoreSnapshots(const std::vector<PropertySnapshot>& snapshots)
+    {
+        properties_.clear();
+
+        for (const auto& snapshot : snapshots)
+        {
+            properties_.emplace_back(snapshot.Name(), snapshot.Value());
+        }
     }
 
     const std::vector<Property>& All() const
