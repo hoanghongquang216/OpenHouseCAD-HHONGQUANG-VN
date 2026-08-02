@@ -27,6 +27,36 @@ public:
         return matrix;
     }
 
+    static Matrix4 Scale(double x, double y, double z)
+    {
+        Matrix4 matrix;
+        matrix.data_[0] = x;
+        matrix.data_[5] = y;
+        matrix.data_[10] = z;
+        return matrix;
+    }
+
+    Matrix4 Multiply(const Matrix4& other) const
+    {
+        Matrix4 result;
+
+        for (int row = 0; row < 4; ++row)
+        {
+            for (int column = 0; column < 4; ++column)
+            {
+                result.data_[row * 4 + column] = 0.0;
+
+                for (int k = 0; k < 4; ++k)
+                {
+                    result.data_[row * 4 + column] +=
+                        data_[row * 4 + k] * other.data_[k * 4 + column];
+                }
+            }
+        }
+
+        return result;
+    }
+
     Point3D Transform(const Point3D& point) const
     {
         return Point3D(
