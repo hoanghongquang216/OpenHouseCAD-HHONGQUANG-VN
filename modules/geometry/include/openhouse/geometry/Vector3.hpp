@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath>
+
 namespace openhouse::geometry
 {
 
@@ -18,6 +20,34 @@ public:
     constexpr Vector3 operator+(const Vector3& other) const
     {
         return Vector3(x_ + other.x_, y_ + other.y_, z_ + other.z_);
+    }
+
+    constexpr Vector3 operator-(const Vector3& other) const
+    {
+        return Vector3(x_ - other.x_, y_ - other.y_, z_ - other.z_);
+    }
+
+    constexpr Vector3 operator*(double value) const
+    {
+        return Vector3(x_ * value, y_ * value, z_ * value);
+    }
+
+    double Length() const
+    {
+        return std::sqrt(x_ * x_ + y_ * y_ + z_ * z_);
+    }
+
+    double Dot(const Vector3& other) const
+    {
+        return x_ * other.x_ + y_ * other.y_ + z_ * other.z_;
+    }
+
+    Vector3 Cross(const Vector3& other) const
+    {
+        return Vector3(
+            y_ * other.z_ - z_ * other.y_,
+            z_ * other.x_ - x_ * other.z_,
+            x_ * other.y_ - y_ * other.x_);
     }
 
 private:
