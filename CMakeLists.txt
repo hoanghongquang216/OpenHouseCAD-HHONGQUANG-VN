@@ -1,19 +1,18 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.25)
 
-project(OpenHouseCAD LANGUAGES CXX)
+project(OpenHouseCAD
+    VERSION 0.1.0
+    DESCRIPTION "OpenHouseCAD - Ung dung Thiet ke Cong trinh Xay dung"
+    LANGUAGES CXX
+)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(OPENHOUSECAD_BUILD_TESTS "Build OpenHouseCAD tests" ON)
-
-add_subdirectory(modules/kernel)
-
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/modules/model)
-    add_subdirectory(modules/model)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    include(CTest)
 endif()
 
-if(OPENHOUSECAD_BUILD_TESTS)
-    enable_testing()
-endif()
+add_subdirectory(modules/foundation)
+add_subdirectory(modules/geometry)
