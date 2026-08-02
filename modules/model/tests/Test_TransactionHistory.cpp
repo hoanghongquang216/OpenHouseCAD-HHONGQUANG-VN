@@ -2,6 +2,8 @@
 
 #include <openhouse/model/HistoryManager.hpp>
 #include <openhouse/model/TransactionExecutor.hpp>
+#include <openhouse/model/EntityStateSnapshot.hpp>
+#include <openhouse/model/EntitySnapshot.hpp>
 
 using namespace openhouse::model;
 
@@ -12,10 +14,16 @@ int main()
     assert(!history.CanUndo());
     assert(!history.CanRedo());
 
-    // Integration scenario:
-    // Create -> Modify -> Commit -> Undo -> Redo
-    // Full state validation will be enabled after ModelStore
-    // snapshot restoration is implemented.
+    // Integration flow preparation:
+    // Create -> Modify -> Commit -> Undo -> Verify -> Redo -> Verify
+    //
+    // Real state assertions will be enabled when ModelStore restore
+    // execution is connected to TransactionExecutor.
+
+    EntitySnapshot entitySnapshot(EntityId{}, EntityType{});
+    EntityStateSnapshot state(entitySnapshot);
+
+    (void)state;
 
     return 0;
 }
