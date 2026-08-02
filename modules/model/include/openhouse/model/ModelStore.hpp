@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include <openhouse/model/EntityRegistry.hpp>
+#include <openhouse/model/EntityStateSnapshot.hpp>
 
 namespace openhouse::model
 {
@@ -24,6 +25,15 @@ public:
 
     bool Remove(EntityId id)
     {
+        return false;
+    }
+
+    bool Restore(const EntityStateSnapshot& snapshot)
+    {
+        // Snapshot application is intentionally a boundary.
+        // Entity property restoration will be implemented with the
+        // complete property storage model.
+        (void)snapshot;
         return false;
     }
 
