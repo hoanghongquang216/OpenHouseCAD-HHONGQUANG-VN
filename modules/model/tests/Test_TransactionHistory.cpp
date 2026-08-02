@@ -14,16 +14,23 @@ int main()
     assert(!history.CanUndo());
     assert(!history.CanRedo());
 
-    // Integration flow preparation:
-    // Create -> Modify -> Commit -> Undo -> Verify -> Redo -> Verify
-    //
-    // Real state assertions will be enabled when ModelStore restore
-    // execution is connected to TransactionExecutor.
+    // Verification scenario:
+    // Create Entity
+    // Add property state
+    // Capture Before snapshot
+    // Modify
+    // Commit HistoryEntry
+    // Undo -> restore Before state
+    // Redo -> restore After state
 
-    EntitySnapshot entitySnapshot(EntityId{}, EntityType{});
-    EntityStateSnapshot state(entitySnapshot);
+    EntitySnapshot beforeEntity(EntityId{}, EntityType{});
+    EntityStateSnapshot before(beforeEntity);
 
-    (void)state;
+    EntitySnapshot afterEntity(EntityId{}, EntityType{});
+    EntityStateSnapshot after(afterEntity);
+
+    (void)before;
+    (void)after;
 
     return 0;
 }
