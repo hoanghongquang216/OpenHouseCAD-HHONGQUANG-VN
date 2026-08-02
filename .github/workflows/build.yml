@@ -13,8 +13,13 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+
       - name: Configure CMake
-        run: cmake -S . -B build
+        run: cmake -S . -B build -G Ninja -DOPENHOUSECAD_BUILD_TESTS=ON
 
       - name: Build
         run: cmake --build build --parallel
