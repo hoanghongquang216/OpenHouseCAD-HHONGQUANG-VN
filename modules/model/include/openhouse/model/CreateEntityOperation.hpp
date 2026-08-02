@@ -1,8 +1,10 @@
 #pragma once
 
+#include <openhouse/model/EntityChangeRecord.hpp>
 #include <openhouse/model/EntityId.hpp>
 #include <openhouse/model/EntityType.hpp>
 #include <openhouse/model/ModelStore.hpp>
+#include <openhouse/model/TransactionOperationContext.hpp>
 
 namespace openhouse::model
 {
@@ -15,9 +17,14 @@ public:
     {
     }
 
-    EntityId Execute()
+    EntityId Execute(TransactionOperationContext& context)
     {
-        return store_.Create(type_);
+        const auto id = store_.Create(type_);
+
+        context.Changes().Add(
+            EntityChangeRecord(EntityChangeType::Create, id));
+
+        return id;
     }
 
 private:
