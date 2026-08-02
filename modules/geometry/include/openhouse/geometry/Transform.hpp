@@ -19,15 +19,24 @@ public:
     {
     }
 
-    const Point3D& Position() const
-    {
-        return position_;
-    }
+    const Point3D& Position() const { return position_; }
 
     void SetPosition(const Point3D& position)
     {
         position_ = position;
-        matrix_ = Matrix4::Translation(position.X(), position.Y(), position.Z());
+        RebuildMatrix();
+    }
+
+    void SetRotation(const Matrix4& rotation)
+    {
+        rotation_ = rotation;
+        RebuildMatrix();
+    }
+
+    void SetScale(const Matrix4& scale)
+    {
+        scale_ = scale;
+        RebuildMatrix();
     }
 
     Point3D Apply(const Point3D& point) const
@@ -35,13 +44,20 @@ public:
         return matrix_.Transform(point);
     }
 
-    const Matrix4& Matrix() const
+    const Matrix4& Matrix() const { return matrix_; }
+
+private:
+    void RebuildMatrix()
     {
-        return matrix_;
+        matrix_ = Matrix4::Translation(position_.X(), position_.Y(), position_.Z())
+            .Multiply(rotation_)
+            .Multiply(scale_);
     }
 
 private:
     Point3D position_;
+    Matrix4 rotation_ = Matrix4::Identity();
+    Matrix4 scale_ = Matrix4::Identity();
     Matrix4 matrix_;
 };
 
