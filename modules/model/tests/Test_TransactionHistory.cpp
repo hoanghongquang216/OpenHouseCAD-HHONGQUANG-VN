@@ -1,6 +1,7 @@
 #include <cassert>
 
 #include <openhouse/model/HistoryManager.hpp>
+#include <openhouse/model/TransactionExecutor.hpp>
 #include <openhouse/model/PropertySnapshot.hpp>
 #include <openhouse/model/EntityStateSnapshot.hpp>
 #include <openhouse/model/EntitySnapshot.hpp>
@@ -32,7 +33,12 @@ int main()
     assert(change.Before().Properties()[0].Value() == "3000");
     assert(change.After().Properties()[0].Value() == "3500");
 
-    // Next step: execute through TransactionExecutor + ModelStore.
+    // Executor wiring validation point.
+    // Full runtime assertion requires a populated ModelStore entity.
+    ModelStore store;
+    TransactionExecutor executor(store);
+
+    (void)executor;
 
     return 0;
 }
