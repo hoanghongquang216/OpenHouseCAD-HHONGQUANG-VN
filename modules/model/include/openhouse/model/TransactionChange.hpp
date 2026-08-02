@@ -1,8 +1,9 @@
 #pragma once
 
-#include <cstdint>
+#include <utility>
 
 #include <openhouse/model/EntityId.hpp>
+#include <openhouse/model/EntityStateSnapshot.hpp>
 
 namespace openhouse::model
 {
@@ -17,8 +18,15 @@ enum class ChangeOperation
 class TransactionChange
 {
 public:
-    TransactionChange(ChangeOperation operation, EntityId id)
-        : operation_(operation), entityId_(id)
+    TransactionChange(
+        ChangeOperation operation,
+        EntityId id,
+        EntityStateSnapshot before,
+        EntityStateSnapshot after)
+        : operation_(operation),
+          entityId_(id),
+          before_(std::move(before)),
+          after_(std::move(after))
     {
     }
 
@@ -32,9 +40,21 @@ public:
         return entityId_;
     }
 
+    const EntityStateSnapshot& Before() const
+    {
+        return before_;
+    }
+
+    const EntityStateSnapshot& After() const
+    {
+        return after_;
+    }
+
 private:
     ChangeOperation operation_;
     EntityId entityId_;
+    EntityStateSnapshot before_;
+    EntityStateSnapshot after_;
 };
 
 }
