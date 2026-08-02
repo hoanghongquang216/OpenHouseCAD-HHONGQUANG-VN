@@ -19,28 +19,37 @@ using Point3f = Point3<float>;
 using Point3d = Point3<double>;
 using Point3i = Point3<int>;
 
-template<Vector3Component T>
-constexpr Vector3<T> operator-(const Point3<T>& a, const Point3<T>& b) noexcept
+template<typename T>
+constexpr Vector3 operator-(const Point3<T>& a, const Point3<T>& b) noexcept
 {
-    return {a.x - b.x, a.y - b.y, a.z - b.z};
+    return Vector3(
+        static_cast<double>(a.x - b.x),
+        static_cast<double>(a.y - b.y),
+        static_cast<double>(a.z - b.z));
 }
 
-template<Vector3Component T>
-constexpr Point3<T> operator+(const Point3<T>& p, const Vector3<T>& v) noexcept
+template<typename T>
+constexpr Point3<T> operator+(const Point3<T>& p, const Vector3& v) noexcept
 {
-    return {p.x + v.x, p.y + v.y, p.z + v.z};
+    return {
+        static_cast<T>(p.x + v.X()),
+        static_cast<T>(p.y + v.Y()),
+        static_cast<T>(p.z + v.Z())};
 }
 
-template<Vector3Component T>
-constexpr Point3<T> operator+(const Vector3<T>& v, const Point3<T>& p) noexcept
+template<typename T>
+constexpr Point3<T> operator+(const Vector3& v, const Point3<T>& p) noexcept
 {
     return p + v;
 }
 
-template<Vector3Component T>
-constexpr Point3<T> operator-(const Point3<T>& p, const Vector3<T>& v) noexcept
+template<typename T>
+constexpr Point3<T> operator-(const Point3<T>& p, const Vector3& v) noexcept
 {
-    return {p.x - v.x, p.y - v.y, p.z - v.z};
+    return {
+        static_cast<T>(p.x - v.X()),
+        static_cast<T>(p.y - v.Y()),
+        static_cast<T>(p.z - v.Z())};
 }
 
 }
