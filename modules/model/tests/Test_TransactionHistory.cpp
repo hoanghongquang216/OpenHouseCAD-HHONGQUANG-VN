@@ -4,6 +4,7 @@
 #include <openhouse/model/PropertySnapshot.hpp>
 #include <openhouse/model/EntityStateSnapshot.hpp>
 #include <openhouse/model/EntitySnapshot.hpp>
+#include <openhouse/model/TransactionChange.hpp>
 
 using namespace openhouse::model;
 
@@ -22,12 +23,16 @@ int main()
     EntityStateSnapshot after(afterEntity);
     after.AddProperty(PropertySnapshot("Height", "3500"));
 
-    assert(before.Properties().size() == 1);
-    assert(after.Properties().size() == 1);
-    assert(before.Properties()[0].Value() == "3000");
-    assert(after.Properties()[0].Value() == "3500");
+    TransactionChange change(
+        ChangeOperation::Modify,
+        EntityId{},
+        before,
+        after);
 
-    // Next step: connect TransactionChange + Executor execution.
+    assert(change.Before().Properties()[0].Value() == "3000");
+    assert(change.After().Properties()[0].Value() == "3500");
+
+    // Next step: execute through TransactionExecutor + ModelStore.
 
     return 0;
 }
