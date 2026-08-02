@@ -3,6 +3,7 @@
 #include <vector>
 
 #include <openhouse/kernel/ChangeRecord.hpp>
+#include <openhouse/kernel/TransactionResult.hpp>
 
 namespace openhouse::kernel
 {
@@ -30,15 +31,18 @@ public:
         return changes_.size();
     }
 
-    void Commit()
+    TransactionResult Commit()
     {
         state_ = State::Committed;
+        return TransactionResult(true, changes_.size());
     }
 
-    void Rollback()
+    TransactionResult Rollback()
     {
         state_ = State::RolledBack;
+        const auto changes = changes_.size();
         changes_.clear();
+        return TransactionResult(true, changes);
     }
 
     bool IsCommitted() const
