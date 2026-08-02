@@ -12,6 +12,10 @@ struct Point3
     T y{};
     T z{};
 
+    constexpr T X() const noexcept { return x; }
+    constexpr T Y() const noexcept { return y; }
+    constexpr T Z() const noexcept { return z; }
+
     friend constexpr bool operator==(const Point3&, const Point3&) = default;
 };
 
