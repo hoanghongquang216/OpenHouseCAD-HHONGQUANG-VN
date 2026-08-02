@@ -25,7 +25,7 @@ public:
 
     bool Remove(EntityId id)
     {
-        return false;
+        return registry_.Remove(id);
     }
 
     bool Restore(const EntityStateSnapshot& snapshot)
