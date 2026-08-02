@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath>
+
 #include <openhouse/geometry/Point3D.hpp>
 
 namespace openhouse::geometry
@@ -17,10 +19,7 @@ public:
         data_[15] = 1.0;
     }
 
-    static Matrix4 Identity()
-    {
-        return Matrix4();
-    }
+    static Matrix4 Identity() { return Matrix4(); }
 
     static Matrix4 Translation(double x, double y, double z)
     {
@@ -40,6 +39,45 @@ public:
         return matrix;
     }
 
+    static Matrix4 RotationX(double angle)
+    {
+        Matrix4 matrix;
+        const double c = std::cos(angle);
+        const double s = std::sin(angle);
+
+        matrix.data_[5] = c;
+        matrix.data_[6] = -s;
+        matrix.data_[9] = s;
+        matrix.data_[10] = c;
+        return matrix;
+    }
+
+    static Matrix4 RotationY(double angle)
+    {
+        Matrix4 matrix;
+        const double c = std::cos(angle);
+        const double s = std::sin(angle);
+
+        matrix.data_[0] = c;
+        matrix.data_[2] = s;
+        matrix.data_[8] = -s;
+        matrix.data_[10] = c;
+        return matrix;
+    }
+
+    static Matrix4 RotationZ(double angle)
+    {
+        Matrix4 matrix;
+        const double c = std::cos(angle);
+        const double s = std::sin(angle);
+
+        matrix.data_[0] = c;
+        matrix.data_[1] = -s;
+        matrix.data_[4] = s;
+        matrix.data_[5] = c;
+        return matrix;
+    }
+
     Matrix4 Multiply(const Matrix4& other) const
     {
         Matrix4 result;
@@ -49,7 +87,6 @@ public:
             for (int column = 0; column < 4; ++column)
             {
                 result.data_[row * 4 + column] = 0.0;
-
                 for (int k = 0; k < 4; ++k)
                 {
                     result.data_[row * 4 + column] +=
