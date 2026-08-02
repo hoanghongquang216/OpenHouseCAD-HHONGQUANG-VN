@@ -3,6 +3,7 @@
 #include <vector>
 
 #include <openhouse/kernel/ChangeRecord.hpp>
+#include <openhouse/kernel/TransactionCommand.hpp>
 #include <openhouse/kernel/TransactionResult.hpp>
 #include <openhouse/kernel/TransactionValidator.hpp>
 
@@ -24,12 +25,18 @@ public:
         if (state_ == State::Active)
         {
             changes_.push_back(change);
+            commands_.emplace_back(change);
         }
     }
 
     std::size_t ChangeCount() const
     {
         return changes_.size();
+    }
+
+    std::size_t CommandCount() const
+    {
+        return commands_.size();
     }
 
     TransactionResult Commit()
@@ -48,6 +55,7 @@ public:
         state_ = State::RolledBack;
         const auto changes = changes_.size();
         changes_.clear();
+        commands_.clear();
         return TransactionResult(true, changes);
     }
 
@@ -64,6 +72,7 @@ public:
 private:
     State state_{State::Active};
     std::vector<ChangeRecord> changes_;
+    std::vector<TransactionCommand> commands_;
     TransactionValidator validator_;
 };
 
