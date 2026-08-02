@@ -44,15 +44,15 @@ public:
 
     double Dot(const Vector3D& other) const
     {
-        return x_ * other.x_ + y_ * other.y + z_ * other.z_;
+        return x_ * other.X() + y_ * other.Y() + z_ * other.Z();
     }
 
     Vector3D Cross(const Vector3D& other) const
     {
         return Vector3D(
-            y_ * other.z_ - z_ * other.y_,
-            z_ * other.x_ - x_ * other.z_,
-            x_ * other.y_ - y_ * other.x_);
+            y_ * other.Z() - z_ * other.Y(),
+            z_ * other.X() - x_ * other.Z(),
+            x_ * other.Y() - y_ * other.X());
     }
 
 private:
