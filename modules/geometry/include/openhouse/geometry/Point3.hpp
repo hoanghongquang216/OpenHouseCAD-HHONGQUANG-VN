@@ -5,40 +5,42 @@
 namespace openhouse::geometry
 {
 
-class Point3
+template<typename T>
+struct Point3
 {
-public:
-    constexpr Point3(double x = 0.0, double y = 0.0, double z = 0.0)
-        : x_(x), y_(y), z_(z)
-    {
-    }
+    T x{};
+    T y{};
+    T z{};
 
-    constexpr double X() const { return x_; }
-    constexpr double Y() const { return y_; }
-    constexpr double Z() const { return z_; }
-
-    constexpr Point3 operator+(const Vector3& vector) const
-    {
-        return Point3(x_ + vector.X(), y_ + vector.Y(), z_ + vector.Z());
-    }
-
-    constexpr Point3 operator-(const Vector3& vector) const
-    {
-        return Point3(x_ - vector.X(), y_ - vector.Y(), z_ - vector.Z());
-    }
-
-    constexpr Vector3 operator-(const Point3& other) const
-    {
-        return Vector3(
-            x_ - other.x_,
-            y_ - other.y_,
-            z_ - other.z_);
-    }
-
-private:
-    double x_;
-    double y_;
-    double z_;
+    friend constexpr bool operator==(const Point3&, const Point3&) = default;
 };
+
+using Point3f = Point3<float>;
+using Point3d = Point3<double>;
+using Point3i = Point3<int>;
+
+template<Vector3Component T>
+constexpr Vector3<T> operator-(const Point3<T>& a, const Point3<T>& b) noexcept
+{
+    return {a.x - b.x, a.y - b.y, a.z - b.z};
+}
+
+template<Vector3Component T>
+constexpr Point3<T> operator+(const Point3<T>& p, const Vector3<T>& v) noexcept
+{
+    return {p.x + v.x, p.y + v.y, p.z + v.z};
+}
+
+template<Vector3Component T>
+constexpr Point3<T> operator+(const Vector3<T>& v, const Point3<T>& p) noexcept
+{
+    return p + v;
+}
+
+template<Vector3Component T>
+constexpr Point3<T> operator-(const Point3<T>& p, const Vector3<T>& v) noexcept
+{
+    return {p.x - v.x, p.y - v.y, p.z - v.z};
+}
 
 }
