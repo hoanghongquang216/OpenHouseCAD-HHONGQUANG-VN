@@ -8,9 +8,13 @@ namespace openhouse::geometry
 class Matrix4
 {
 public:
-    Matrix4()
+    constexpr Matrix4()
+        : data_{}
     {
-        SetIdentity();
+        data_[0] = 1.0;
+        data_[5] = 1.0;
+        data_[10] = 1.0;
+        data_[15] = 1.0;
     }
 
     static Matrix4 Identity()
@@ -68,20 +72,6 @@ public:
     constexpr double At(int row, int column) const
     {
         return data_[row * 4 + column];
-    }
-
-private:
-    void SetIdentity()
-    {
-        for (int i = 0; i < 16; ++i)
-        {
-            data_[i] = 0.0;
-        }
-
-        data_[0] = 1.0;
-        data_[5] = 1.0;
-        data_[10] = 1.0;
-        data_[15] = 1.0;
     }
 
 private:
