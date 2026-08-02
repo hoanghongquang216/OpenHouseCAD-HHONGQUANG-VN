@@ -3,6 +3,7 @@
 #include <openhouse/model/EntityId.hpp>
 #include <openhouse/model/EntityType.hpp>
 #include <openhouse/model/PropertySet.hpp>
+#include <openhouse/model/EntityStateSnapshot.hpp>
 
 namespace openhouse::model
 {
@@ -33,6 +34,14 @@ public:
     const PropertySet& Properties() const
     {
         return properties_;
+    }
+
+    void Restore(const EntityStateSnapshot& snapshot)
+    {
+        properties_.Clear();
+        // Property restoration will be connected after snapshot property
+        // conversion is implemented.
+        (void)snapshot;
     }
 
 private:
