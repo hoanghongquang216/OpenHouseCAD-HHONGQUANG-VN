@@ -8,7 +8,7 @@ namespace openhouse::geometry
 class Transform
 {
 public:
-    constexpr Transform() = default;
+    Transform() = default;
 
     const Matrix4& Matrix() const
     {
