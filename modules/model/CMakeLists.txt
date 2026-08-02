@@ -14,4 +14,5 @@ target_include_directories(openhouse_model
 
 if(OPENHOUSECAD_BUILD_TESTS)
     enable_testing()
+    add_subdirectory(tests)
 endif()
