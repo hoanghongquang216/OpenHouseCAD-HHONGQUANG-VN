@@ -23,6 +23,11 @@ public:
         return true;
     }
 
+    bool Remove(EntityId id)
+    {
+        return entities_.erase(id.Value()) > 0;
+    }
+
     Entity* Find(EntityId id)
     {
         auto it = entities_.find(id.Value());
