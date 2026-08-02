@@ -4,6 +4,8 @@
 #include <openhouse/model/EntityType.hpp>
 #include <openhouse/model/PropertySet.hpp>
 #include <openhouse/model/EntityStateSnapshot.hpp>
+#include <openhouse/model/EntitySnapshot.hpp>
+#include <openhouse/model/PropertySnapshot.hpp>
 
 namespace openhouse::model
 {
@@ -34,6 +36,18 @@ public:
     const PropertySet& Properties() const
     {
         return properties_;
+    }
+
+    EntityStateSnapshot Snapshot() const
+    {
+        EntityStateSnapshot snapshot(EntitySnapshot(id_, type_));
+
+        for (const auto& property : properties_.All())
+        {
+            snapshot.AddProperty(PropertySnapshot(property.Name(), property.Value()));
+        }
+
+        return snapshot;
     }
 
     void Restore(const EntityStateSnapshot& snapshot)
