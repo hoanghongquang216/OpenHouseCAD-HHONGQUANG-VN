@@ -1,17 +1,34 @@
 #pragma once
 
+#include <openhouse/model/DocumentModel.hpp>
+
 namespace openhouse::model
 {
 
 // Boundary between transaction system and model system.
-// This class intentionally contains no transaction implementation yet.
-// It defines the dependency direction:
-// Transaction -> Bridge -> ModelStore
+// Transaction implementation remains in kernel.
+// This layer only exposes model access direction.
 
 class TransactionModelBridge
 {
 public:
-    TransactionModelBridge() = default;
+    explicit TransactionModelBridge(DocumentModel& model)
+        : model_(model)
+    {
+    }
+
+    DocumentModel& Model()
+    {
+        return model_;
+    }
+
+    const DocumentModel& Model() const
+    {
+        return model_;
+    }
+
+private:
+    DocumentModel& model_;
 };
 
 }
