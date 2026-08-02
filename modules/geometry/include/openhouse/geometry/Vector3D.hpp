@@ -36,10 +36,7 @@ public:
             return Vector3D();
         }
 
-        return Vector3D(
-            x_ / length,
-            y_ / length,
-            z_ / length);
+        return Vector3D(x_ / length, y_ / length, z_ / length);
     }
 
     double Dot(const Vector3D& other) const
@@ -53,6 +50,21 @@ public:
             y_ * other.Z() - z_ * other.Y(),
             z_ * other.X() - x_ * other.Z(),
             x_ * other.Y() - y_ * other.X());
+    }
+
+    Vector3D operator+(const Vector3D& other) const
+    {
+        return Vector3D(x_ + other.X(), y_ + other.Y(), z_ + other.Z());
+    }
+
+    Vector3D operator-(const Vector3D& other) const
+    {
+        return Vector3D(x_ - other.X(), y_ - other.Y(), z_ - other.Z());
+    }
+
+    Vector3D operator*(double value) const
+    {
+        return Vector3D(x_ * value, y_ * value, z_ * value);
     }
 
 private:
