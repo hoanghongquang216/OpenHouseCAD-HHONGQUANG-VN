@@ -4,6 +4,7 @@
 
 #include <openhouse/kernel/ChangeRecord.hpp>
 #include <openhouse/kernel/TransactionResult.hpp>
+#include <openhouse/kernel/TransactionValidator.hpp>
 
 namespace openhouse::kernel
 {
@@ -33,6 +34,11 @@ public:
 
     TransactionResult Commit()
     {
+        if (!validator_.CanCommit())
+        {
+            return TransactionResult(false, changes_.size());
+        }
+
         state_ = State::Committed;
         return TransactionResult(true, changes_.size());
     }
@@ -58,6 +64,7 @@ public:
 private:
     State state_{State::Active};
     std::vector<ChangeRecord> changes_;
+    TransactionValidator validator_;
 };
 
 }
