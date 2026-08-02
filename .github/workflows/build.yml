@@ -1,0 +1,23 @@
+name: OpenHouseCAD Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Configure and Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: cmake -S . -B build
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
