@@ -4,6 +4,8 @@
 
 #include <openhouse/kernel/ChangeRecord.hpp>
 #include <openhouse/kernel/TransactionCommand.hpp>
+#include <openhouse/kernel/TransactionHistory.hpp>
+#include <openhouse/kernel/TransactionHistoryEntry.hpp>
 #include <openhouse/kernel/TransactionResult.hpp>
 #include <openhouse/kernel/TransactionValidator.hpp>
 
@@ -39,7 +41,7 @@ public:
         return commands_.size();
     }
 
-    TransactionResult Commit()
+    TransactionResult Commit(TransactionHistory* history = nullptr)
     {
         if (!validator_.CanCommit())
         {
@@ -47,6 +49,12 @@ public:
         }
 
         state_ = State::Committed;
+
+        if (history != nullptr)
+        {
+            history->Add(TransactionHistoryEntry(changes_.size()));
+        }
+
         return TransactionResult(true, changes_.size());
     }
 
