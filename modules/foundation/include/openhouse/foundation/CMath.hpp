@@ -17,5 +17,6 @@ using std::floor;
 using std::ceil;
 using std::round;
 using std::pow;
+using std::fmod;
 
 }

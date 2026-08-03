@@ -1,0 +1,61 @@
+# .clang-format for OpenHouseCAD
+#
+# Derived by manually inspecting the existing codebase (not run through
+# clang-format itself -- the tool isn't available in the environment this
+# was authored in, so this file has NOT been empirically verified to
+# reproduce the exact existing formatting byte-for-byte. Run
+# `clang-format --dry-run -Werror` across the repo after adopting this
+# file and adjust any mismatches before enforcing it in CI.
+#
+# Cpp11BracedListStyle was deliberately OMITTED: research confirmed its
+# value type changed from Boolean (older clang-format) to an enum
+# (BracedListStyle: Block/FunctionCall/...) in newer versions, so a
+# literal `true` risks being rejected or silently ignored depending on
+# the clang-format version in use. BasedOnStyle: LLVM already implies
+# equivalent modern-braced-list behavior by default, so this key was not
+# load-bearing and was removed rather than guessed at further.
+#
+# SortIncludes/ReferenceAlignment also have known version-introduction
+# points (SortIncludes' enum form needs clang-format 9+; ReferenceAlignment
+# needs ~13+) -- verify against the actual clang-format version in your
+# environment with `clang-format --dry-run -Werror` before relying on this
+# file in CI.
+#
+# Observed conventions this config targets:
+#   - 4-space indentation
+#   - Access specifiers (`public:`, `protected:`, `private:`) at column 0,
+#     not indented relative to the class body
+#   - Opening braces attached to the same line (namespaces, classes,
+#     functions, control statements)
+#   - No extra indentation for namespace bodies
+#   - No space between `template` and `<...>`
+#   - Reference/pointer qualifiers bound to the type, not the variable name
+#   - Includes within a barrel/aggregate header sorted alphabetically
+#     (observed in the original modules/foundation/include/openhouse/
+#     foundation/Foundation.hpp: Algorithm, Atomic, Bit, CMath, CharConv...)
+
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+
+AccessModifierOffset: -4
+NamespaceIndentation: None
+
+BreakBeforeBraces: Attach
+
+SpaceAfterTemplateKeyword: false
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+AlignAfterOpenBracket: Align
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+
+DerivePointerAlignment: false

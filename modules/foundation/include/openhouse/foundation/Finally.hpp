@@ -4,9 +4,9 @@
 
 namespace openhouse::foundation {
 
-template<class F>
-auto Finally(F&& f) {
-    return ScopeExit<F>(std::forward<F>(f));
+template<typename F>
+[[nodiscard]] auto Finally(F&& f) {
+    return ScopeExit<std::decay_t<F>>(std::forward<F>(f));
 }
 
 }

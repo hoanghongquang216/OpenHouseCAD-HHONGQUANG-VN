@@ -10,3 +10,7 @@ target_include_directories(OpenHouseFoundation
 )
 
 target_compile_features(OpenHouseFoundation INTERFACE cxx_std_23)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

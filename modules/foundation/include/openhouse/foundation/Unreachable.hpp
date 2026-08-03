@@ -1,5 +1,9 @@
 #pragma once
 
+#if defined(__cpp_lib_unreachable)
+#include <utility>
+#endif
+
 namespace openhouse::foundation {
 
 [[noreturn]] inline void Unreachable() {

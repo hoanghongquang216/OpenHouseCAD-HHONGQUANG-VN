@@ -1,0 +1,224 @@
+#include <openhouse/render/RenderDocument.hpp>
+
+#include <cassert>
+#include <cstdio>
+#include <string>
+
+using namespace openhouse::document;
+using namespace openhouse::geometry;
+using namespace openhouse::render;
+
+static void TestEmptyDocumentProducesEmptySvgBody() {
+    const Document doc;
+    SvgDocument svg;
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    assert(content.find("<circle") == std::string::npos);
+    assert(content.find("<line") == std::string::npos);
+    assert(content.find("<path") == std::string::npos);
+    assert(content.find("<svg") != std::string::npos); // shell still present
+}
+
+static void TestSingleLineRenders() {
+    Document doc;
+    doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{10.0, 10.0}});
+
+    SvgDocument svg;
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    assert(content.find("<line") != std::string::npos);
+    assert(content.find(R"(x2="10")") != std::string::npos);
+}
+
+static void TestSingleCircleRenders() {
+    Document doc;
+    doc.Add(Circle2d{Point2d{5.0, 5.0}, 3.0});
+
+    SvgDocument svg;
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    assert(content.find("<circle") != std::string::npos);
+    assert(content.find(R"(r="3")") != std::string::npos);
+    assert(content.find(R"(fill="none")") != std::string::npos); // outline, not point marker
+}
+
+static void TestSingleArcRenders() {
+    Document doc;
+    doc.Add(Arc2d{Point2d{0.0, 0.0}, 5.0, 0.0, 1.0});
+
+    SvgDocument svg;
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    assert(content.find("<path") != std::string::npos);
+}
+
+static void TestMixedDocumentAllShapesRender() {
+    Document doc;
+    doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{1.0, 1.0}});
+    doc.Add(Circle2d{Point2d{2.0, 2.0}, 1.0});
+    doc.Add(Arc2d{Point2d{3.0, 3.0}, 1.0, 0.0, 1.0});
+    doc.Add(Circle2d{Point2d{4.0, 4.0}, 2.0});
+
+    SvgDocument svg;
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    // Count each element type to confirm nothing is dropped or duplicated.
+    auto countOccurrences = [&](const std::string& needle) {
+        std::size_t count = 0, pos = 0;
+        while ((pos = content.find(needle, pos)) != std::string::npos) {
+            ++count;
+            pos += needle.size();
+        }
+        return count;
+    };
+
+    assert(countOccurrences("<line") == 1);
+    assert(countOccurrences("<circle") == 2);
+    assert(countOccurrences("<path") == 1);
+}
+
+static void TestOrderIsPreserved() {
+    // Shapes should render in the same order they were added -- matters
+    // for correct visual stacking (later shapes drawn on top).
+    Document doc;
+    doc.Add(Circle2d{Point2d{1.0, 1.0}, 1.0});
+    doc.Add(Circle2d{Point2d{2.0, 2.0}, 1.0});
+
+    SvgDocument svg;
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    const auto firstPos = content.find(R"(cx="1")");
+    const auto secondPos = content.find(R"(cx="2")");
+    assert(firstPos != std::string::npos);
+    assert(secondPos != std::string::npos);
+    assert(firstPos < secondPos);
+}
+
+// --- Layer consumer tests (Spiral 2 / DOC-003 Milestone 2.3) --------------
+
+static void TestLayerColorAppliedToStroke() {
+    Document doc;
+    doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{1.0, 1.0}}, "Walls");
+    doc.FindLayer("Walls")->SetColor("red");
+
+    SvgDocument svg;
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    assert(content.find(R"(stroke="red")") != std::string::npos);
+}
+
+static void TestLayerLineWeightAppliedToStrokeWidth() {
+    Document doc;
+    doc.Add(Circle2d{Point2d{0.0, 0.0}, 5.0}, "Structural");
+    doc.FindLayer("Structural")->SetLineWeight(3.5);
+
+    SvgDocument svg;
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    assert(content.find(R"(stroke-width="3.5")") != std::string::npos);
+}
+
+static void TestDashedLineTypeProducesDashArray() {
+    Document doc;
+    doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{10.0, 0.0}}, "Center");
+    doc.FindLayer("Center")->SetLineType(LineType::Dashed);
+
+    SvgDocument svg;
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    assert(content.find("stroke-dasharray=") != std::string::npos);
+}
+
+static void TestContinuousLineTypeHasNoDashArray() {
+    Document doc;
+    doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{10.0, 0.0}}, "Walls");
+    // LineType::Continuous is the default -- no explicit SetLineType call.
+
+    SvgDocument svg;
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    assert(content.find("stroke-dasharray=") == std::string::npos);
+}
+
+static void TestHiddenLayerEntityIsNotRendered() {
+    Document doc;
+    doc.Add(Circle2d{Point2d{0.0, 0.0}, 5.0}, "Hidden");
+    doc.FindLayer("Hidden")->SetVisible(false);
+
+    SvgDocument svg;
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    assert(content.find("<circle") == std::string::npos);
+}
+
+// The exact scenario from Spiral 2's Milestone 2.4 demo requirement:
+// Walls (black, solid), Center (gray, dashed), Hidden (invisible) --
+// verifies all three behaviors together, matching what the demo
+// executable is expected to produce.
+static void TestThreeLayerScenarioMatchesSpiral2Spec() {
+    Document doc;
+
+    Layer& walls = doc.CreateLayer("Walls");
+    walls.SetColor("black");
+
+    Layer& center = doc.CreateLayer("Center");
+    center.SetColor("gray");
+    center.SetLineType(LineType::Dashed);
+
+    Layer& hidden = doc.CreateLayer("Hidden");
+    hidden.SetVisible(false);
+
+    doc.Add(Line2d{Point2d{10.0, 10.0}, Point2d{90.0, 10.0}}, "Walls");
+    doc.Add(Line2d{Point2d{10.0, 50.0}, Point2d{90.0, 50.0}}, "Center");
+    doc.Add(Circle2d{Point2d{50.0, 80.0}, 10.0}, "Hidden");
+
+    SvgDocument svg(100.0, 100.0);
+    RenderToSvg(doc, svg);
+    const std::string content = svg.ToString();
+
+    // Walls: appears, black, no dash.
+    assert(content.find(R"(stroke="black")") != std::string::npos);
+    // Center: appears, gray, dashed.
+    assert(content.find(R"(stroke="gray")") != std::string::npos);
+    assert(content.find("stroke-dasharray=") != std::string::npos);
+    // Hidden: does not appear at all (its circle would be the only <circle>).
+    assert(content.find("<circle") == std::string::npos);
+    // Exactly two <line> elements (Walls + Center), not three renderable
+    // shapes -- Hidden's circle must be excluded, not just invisible-styled.
+    std::size_t lineCount = 0, pos = 0;
+    while ((pos = content.find("<line", pos)) != std::string::npos) {
+        ++lineCount;
+        pos += 5;
+    }
+    assert(lineCount == 2);
+}
+
+int main() {
+    TestEmptyDocumentProducesEmptySvgBody();
+    TestSingleLineRenders();
+    TestSingleCircleRenders();
+    TestSingleArcRenders();
+    TestMixedDocumentAllShapesRender();
+    TestOrderIsPreserved();
+
+    TestLayerColorAppliedToStroke();
+    TestLayerLineWeightAppliedToStrokeWidth();
+    TestDashedLineTypeProducesDashArray();
+    TestContinuousLineTypeHasNoDashArray();
+    TestHiddenLayerEntityIsNotRendered();
+    TestThreeLayerScenarioMatchesSpiral2Spec();
+
+    std::puts("RenderDocumentTests: all tests passed.");
+    return 0;
+}
