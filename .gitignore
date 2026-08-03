@@ -218,3 +218,5 @@ __marimo__/
 .streamlit/secrets.toml
 
 # scripts/lib/ chứa thư viện shell dùng chung, KHÔNG phải build output
+!/scripts/lib/
+!/scripts/lib/**
