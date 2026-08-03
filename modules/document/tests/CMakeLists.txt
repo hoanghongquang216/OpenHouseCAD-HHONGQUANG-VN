@@ -31,3 +31,20 @@ add_test(
     NAME OpenHouseLayerTests
     COMMAND OpenHouseLayerTests
 )
+
+add_executable(OpenHouseSelectionTests
+    SelectionTests.cpp
+)
+
+target_link_libraries(OpenHouseSelectionTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+
+openhouse_enable_warnings(OpenHouseSelectionTests)
+
+add_test(
+    NAME OpenHouseSelectionTests
+    COMMAND OpenHouseSelectionTests
+)
