@@ -44,17 +44,15 @@ enum class LineType {
 // string cannot represent ACI indices, and each render backend would
 // otherwise need its own string-parsing/translation logic.
 //
-// `locked` is stored, and as of Selection (SEL-002) IS consulted -- but
-// deliberately NOT to gate hit-testing/selection. A design review while
-// locking SEL-002's spec settled this: Locked means "cannot be
-// edited," not "cannot be selected or inspected" -- many CAD tools
-// allow selecting a locked entity to view its properties or use it as
-// a reference (e.g. Snap, once that exists), while blocking
-// modification. document::HitTest (see HitTest.hpp) therefore checks
-// only Visible(), not Locked(). The actual edit-blocking behavior is
-// still unimplemented -- its concrete consumer is Transform (Spiral 4),
-// which needs to refuse Move/Rotate/Scale on a locked entity even
-// though that same entity can be freely selected.
+// `locked` gates editing, not visibility or selection. Locked in during
+// SEL-002's design review and confirmed again for Spiral 4: HitTest and
+// Selection deliberately do NOT check Locked (a locked entity can still
+// be found by a click and selected -- to view its properties or use it
+// as a reference), while Transform DOES check it -- see
+// document::TranslateEntity (Transform.hpp): translating an entity on a
+// locked layer is rejected outright, the shape verifiably unchanged.
+// This is Locked's first real consumer, closing out what was originally
+// a forward-declared, behavior-less field back in Spiral 2.
 class Layer {
 public:
     explicit Layer(foundation::string name) : name_(foundation::move(name)) {}

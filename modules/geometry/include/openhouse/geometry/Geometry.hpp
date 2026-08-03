@@ -8,5 +8,6 @@
 #include <openhouse/geometry/Line2.hpp>
 #include <openhouse/geometry/Point2.hpp>
 #include <openhouse/geometry/Point3.hpp>
+#include <openhouse/geometry/Transform.hpp>
 #include <openhouse/geometry/Vector2.hpp>
 #include <openhouse/geometry/Vector3.hpp>

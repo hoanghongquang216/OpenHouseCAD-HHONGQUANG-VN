@@ -116,3 +116,20 @@ add_test(
     NAME OpenHouseHitTestTests
     COMMAND OpenHouseHitTestTests
 )
+
+add_executable(OpenHouseTransformTests
+    TransformTests.cpp
+)
+
+target_link_libraries(OpenHouseTransformTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Geometry
+)
+
+openhouse_enable_warnings(OpenHouseTransformTests)
+
+add_test(
+    NAME OpenHouseTransformTests
+    COMMAND OpenHouseTransformTests
+)

@@ -65,3 +65,20 @@ add_test(
     NAME OpenHouseDocumentHitTestTests
     COMMAND OpenHouseDocumentHitTestTests
 )
+
+add_executable(OpenHouseDocumentTransformTests
+    DocumentTransformTests.cpp
+)
+
+target_link_libraries(OpenHouseDocumentTransformTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+
+openhouse_enable_warnings(OpenHouseDocumentTransformTests)
+
+add_test(
+    NAME OpenHouseDocumentTransformTests
+    COMMAND OpenHouseDocumentTransformTests
+)

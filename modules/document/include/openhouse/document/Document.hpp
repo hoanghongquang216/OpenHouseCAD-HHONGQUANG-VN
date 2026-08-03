@@ -153,6 +153,26 @@ public:
         return &entities_[it->second];
     }
 
+    // Mutable counterpart to FindEntity(), added for Spiral 4 (Transform)
+    // -- Document had no way to modify an existing entity's shape in
+    // place until now (Entities()/FindEntity() are both read-only).
+    // Deliberately still just "find and get a pointer", not a dedicated
+    // "TransformEntity" method on Document itself -- the actual
+    // transform logic (and its business rules: rejecting a locked or
+    // hidden layer, validating a scale factor) lives in
+    // document::TranslateEntity/RotateEntity/ScaleEntity (see
+    // Transform.hpp), which use this accessor rather than duplicating
+    // Document's internals. Keeping Document itself free of transform-
+    // specific logic matches the same reasoning HitTest.hpp was kept
+    // out of Document as a free function rather than a method.
+    [[nodiscard]] Entity* FindEntityMutable(EntityId id) noexcept {
+        const auto it = index_.find(id);
+        if (it == index_.end()) {
+            return nullptr;
+        }
+        return &entities_[it->second];
+    }
+
     [[nodiscard]] std::size_t Count() const noexcept { return entities_.size(); }
 
     [[nodiscard]] bool Empty() const noexcept { return entities_.empty(); }
