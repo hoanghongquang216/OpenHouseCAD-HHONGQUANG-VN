@@ -48,3 +48,20 @@ add_test(
     NAME OpenHouseSelectionTests
     COMMAND OpenHouseSelectionTests
 )
+
+add_executable(OpenHouseDocumentHitTestTests
+    DocumentHitTestTests.cpp
+)
+
+target_link_libraries(OpenHouseDocumentHitTestTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+
+openhouse_enable_warnings(OpenHouseDocumentHitTestTests)
+
+add_test(
+    NAME OpenHouseDocumentHitTestTests
+    COMMAND OpenHouseDocumentHitTestTests
+)

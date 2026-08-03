@@ -82,4 +82,20 @@ template<typename T>
     return {p, p};
 }
 
+// Expands (or shrinks, for a negative margin) the box equally on all
+// four sides. Primarily exists for hit-testing's bounding-box fast-
+// reject (see document::HitTest): a shape's exact bounding box, dilated
+// by the hit-test tolerance, gives a cheap AABB-vs-point test that
+// rejects most entities before the more expensive exact
+// geometry::DistanceToShape() computation runs on them. A negative
+// margin producing an inverted box (min > max) is the caller's
+// responsibility to avoid; this function doesn't validate that.
+template<typename T>
+[[nodiscard]] constexpr BoundingBox2<T> Dilate(const BoundingBox2<T>& box, T margin) noexcept {
+    return {
+        {box.min.x - margin, box.min.y - margin},
+        {box.max.x + margin, box.max.y + margin},
+    };
+}
+
 }

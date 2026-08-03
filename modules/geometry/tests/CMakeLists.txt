@@ -99,3 +99,20 @@ add_test(
     NAME OpenHouseBoundsTests
     COMMAND OpenHouseBoundsTests
 )
+
+add_executable(OpenHouseHitTestTests
+    HitTestTests.cpp
+)
+
+target_link_libraries(OpenHouseHitTestTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Geometry
+)
+
+openhouse_enable_warnings(OpenHouseHitTestTests)
+
+add_test(
+    NAME OpenHouseHitTestTests
+    COMMAND OpenHouseHitTestTests
+)
