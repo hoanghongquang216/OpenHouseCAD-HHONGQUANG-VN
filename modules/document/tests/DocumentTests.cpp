@@ -1,6 +1,6 @@
 #include <openhouse/document/Document.hpp>
-#include <openhouse/testing/Check.hpp>
 
+#include <openhouse/testing/Check.hpp>
 #include <cstdio>
 #include <type_traits>
 #include <variant>
@@ -163,6 +163,51 @@ static void TestBoundsSkipsHiddenLayer() {
     OH_CHECK(box->max.y < 2.0);
 }
 
+// --- EntityId tests (Spiral 3 / DOC-004) -----------------------------------
+
+static void TestAddReturnsUniqueIds() {
+    Document doc;
+    const EntityId id1 = doc.Add(Circle2d{Point2d{0.0, 0.0}, 1.0});
+    const EntityId id2 = doc.Add(Circle2d{Point2d{1.0, 1.0}, 1.0});
+    OH_CHECK(id1 != kInvalidEntityId);
+    OH_CHECK(id2 != kInvalidEntityId);
+    OH_CHECK(id1 != id2);
+}
+
+static void TestFindEntityByIdReturnsCorrectEntity() {
+    Document doc;
+    const EntityId targetId = doc.Add(Circle2d{Point2d{5.0, 5.0}, 2.0}, "Walls");
+    doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{1.0, 1.0}}); // decoy entity
+
+    const Entity* found = doc.FindEntity(targetId);
+    OH_CHECK(found != nullptr);
+    OH_CHECK(found->id == targetId);
+    OH_CHECK(found->layer == "Walls");
+    const auto* circle = std::get_if<Circle2d>(&found->shape);
+    OH_CHECK(circle != nullptr);
+    OH_CHECK(circle->radius == 2.0);
+}
+
+static void TestFindEntityWithUnknownIdReturnsNullptr() {
+    Document doc;
+    doc.Add(Circle2d{Point2d{0.0, 0.0}, 1.0});
+    OH_CHECK(doc.FindEntity(99999) == nullptr);
+    OH_CHECK(doc.FindEntity(kInvalidEntityId) == nullptr);
+}
+
+static void TestClearDoesNotResetIdCounter() {
+    Document doc;
+    const EntityId id1 = doc.Add(Circle2d{Point2d{0.0, 0.0}, 1.0});
+    doc.Clear();
+    OH_CHECK(doc.FindEntity(id1) == nullptr); // gone after Clear()
+
+    const EntityId id2 = doc.Add(Circle2d{Point2d{1.0, 1.0}, 1.0});
+    // A stale ID from before Clear() must never resolve to a
+    // post-Clear() entity, even one that happens to reuse the same
+    // numeric value -- monotonic IDs guarantee id2 != id1.
+    OH_CHECK(id2 != id1);
+}
+
 int main() {
     TestEmptyDocument();
     TestAddLine();
@@ -180,6 +225,11 @@ int main() {
     TestAddingToSameLayerTwiceDoesNotDuplicateIt();
     TestCreateLayerDirectlyIsIdempotent();
     TestBoundsSkipsHiddenLayer();
+
+    TestAddReturnsUniqueIds();
+    TestFindEntityByIdReturnsCorrectEntity();
+    TestFindEntityWithUnknownIdReturnsNullptr();
+    TestClearDoesNotResetIdCounter();
 
     std::puts("DocumentTests: all tests passed.");
     return 0;
