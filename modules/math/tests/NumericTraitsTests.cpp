@@ -1,4 +1,5 @@
 #include <openhouse/math/NumericTraits.hpp>
+#include <openhouse/testing/Check.hpp>
 
 #include <cstdio>
 #include <limits>

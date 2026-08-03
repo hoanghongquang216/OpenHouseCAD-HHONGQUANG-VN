@@ -4,6 +4,7 @@ add_executable(OpenHouseDocumentTests
 
 target_link_libraries(OpenHouseDocumentTests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Document
 )
 
@@ -20,6 +21,7 @@ add_executable(OpenHouseLayerTests
 
 target_link_libraries(OpenHouseLayerTests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Document
 )
 

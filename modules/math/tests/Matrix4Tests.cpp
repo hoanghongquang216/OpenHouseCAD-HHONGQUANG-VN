@@ -1,6 +1,6 @@
 #include <openhouse/math/Matrix4.hpp>
+#include <openhouse/testing/Check.hpp>
 
-#include <cassert>
 #include <cmath>
 #include <cstdio>
 
@@ -23,21 +23,21 @@ static void TestIdentityLeavesPointsUnchanged() {
     const Matrix4d id = Matrix4d::Identity();
     const Point3d p{1.0, 2.0, 3.0};
     const Point3d result = id * p;
-    assert(NearlyEqual(result, p));
+    OH_CHECK(NearlyEqual(result, p));
 }
 
 static void TestIdentityLeavesVectorsUnchanged() {
     const Matrix4d id = Matrix4d::Identity();
     const Vector3d v{1.0, 2.0, 3.0};
     const Vector3d result = id * v;
-    assert(NearlyEqual(result, v));
+    OH_CHECK(NearlyEqual(result, v));
 }
 
 static void TestTranslationMovesPoint() {
     const Matrix4d t = Matrix4d::Translation(Vector3d{10.0, 20.0, 30.0});
     const Point3d p{1.0, 1.0, 1.0};
     const Point3d result = t * p;
-    assert(NearlyEqual(result, Point3d{11.0, 21.0, 31.0}));
+    OH_CHECK(NearlyEqual(result, Point3d{11.0, 21.0, 31.0}));
 }
 
 static void TestTranslationDoesNotAffectVector() {
@@ -45,21 +45,21 @@ static void TestTranslationDoesNotAffectVector() {
     const Matrix4d t = Matrix4d::Translation(Vector3d{10.0, 20.0, 30.0});
     const Vector3d v{1.0, 1.0, 1.0};
     const Vector3d result = t * v;
-    assert(NearlyEqual(result, v));
+    OH_CHECK(NearlyEqual(result, v));
 }
 
 static void TestUniformScale() {
     const Matrix4d s = Matrix4d::UniformScale(2.0);
     const Point3d p{1.0, 2.0, 3.0};
     const Point3d result = s * p;
-    assert(NearlyEqual(result, Point3d{2.0, 4.0, 6.0}));
+    OH_CHECK(NearlyEqual(result, Point3d{2.0, 4.0, 6.0}));
 }
 
 static void TestNonUniformScale() {
     const Matrix4d s = Matrix4d::Scale(Vector3d{2.0, 3.0, 4.0});
     const Point3d p{1.0, 1.0, 1.0};
     const Point3d result = s * p;
-    assert(NearlyEqual(result, Point3d{2.0, 3.0, 4.0}));
+    OH_CHECK(NearlyEqual(result, Point3d{2.0, 3.0, 4.0}));
 }
 
 static void TestRotationZ90DegreesOnXAxis() {
@@ -69,7 +69,7 @@ static void TestRotationZ90DegreesOnXAxis() {
     const Matrix4d r = Matrix4d::RotationZ(Angled::FromDegrees(90.0));
     const Point3d p{1.0, 0.0, 0.0};
     const Point3d result = r * p;
-    assert(NearlyEqual(result, Point3d{0.0, 1.0, 0.0}, 1e-9));
+    OH_CHECK(NearlyEqual(result, Point3d{0.0, 1.0, 0.0}, 1e-9));
 }
 
 static void TestRotationX90DegreesOnYAxis() {
@@ -77,7 +77,7 @@ static void TestRotationX90DegreesOnYAxis() {
     const Matrix4d r = Matrix4d::RotationX(Angled::FromDegrees(90.0));
     const Point3d p{0.0, 1.0, 0.0};
     const Point3d result = r * p;
-    assert(NearlyEqual(result, Point3d{0.0, 0.0, 1.0}, 1e-9));
+    OH_CHECK(NearlyEqual(result, Point3d{0.0, 0.0, 1.0}, 1e-9));
 }
 
 static void TestRotationY90DegreesOnZAxis() {
@@ -85,7 +85,7 @@ static void TestRotationY90DegreesOnZAxis() {
     const Matrix4d r = Matrix4d::RotationY(Angled::FromDegrees(90.0));
     const Point3d p{0.0, 0.0, 1.0};
     const Point3d result = r * p;
-    assert(NearlyEqual(result, Point3d{1.0, 0.0, 0.0}, 1e-9));
+    OH_CHECK(NearlyEqual(result, Point3d{1.0, 0.0, 0.0}, 1e-9));
 }
 
 static void TestRotationPreservesLength() {
@@ -94,7 +94,7 @@ static void TestRotationPreservesLength() {
     const Vector3d rotated = r * v;
     const double lengthBefore = Length(v);
     const double lengthAfter = Length(rotated);
-    assert(NearlyEqual(lengthBefore, lengthAfter, 1e-9));
+    OH_CHECK(NearlyEqual(lengthBefore, lengthAfter, 1e-9));
 }
 
 static void TestComposition() {
@@ -111,20 +111,20 @@ static void TestComposition() {
     const Point3d viaCombined = combined * p;
     const Point3d viaManualSteps = scale * (translate * p);
 
-    assert(NearlyEqual(viaCombined, viaManualSteps));
+    OH_CHECK(NearlyEqual(viaCombined, viaManualSteps));
     // translate(1,1,1) by (1,0,0) -> (2,1,1), then scale by 2 -> (4,2,2)
-    assert(NearlyEqual(viaCombined, Point3d{4.0, 2.0, 2.0}));
+    OH_CHECK(NearlyEqual(viaCombined, Point3d{4.0, 2.0, 2.0}));
 }
 
 static void TestTransposedIsInvolution() {
     const Matrix4d m = Matrix4d::Translation(Vector3d{1.0, 2.0, 3.0});
     const Matrix4d doubleTransposed = m.Transposed().Transposed();
-    assert(m == doubleTransposed);
+    OH_CHECK(m == doubleTransposed);
 }
 
 static void TestIdentityEquality() {
-    assert(Matrix4d::Identity() == Matrix4d::Identity());
-    assert(!(Matrix4d::Identity() == Matrix4d::Translation(Vector3d{1.0, 0.0, 0.0})));
+    OH_CHECK(Matrix4d::Identity() == Matrix4d::Identity());
+    OH_CHECK(!(Matrix4d::Identity() == Matrix4d::Translation(Vector3d{1.0, 0.0, 0.0})));
 }
 
 // Compile-time sanity: Identity is constructible and indexable at compile time.

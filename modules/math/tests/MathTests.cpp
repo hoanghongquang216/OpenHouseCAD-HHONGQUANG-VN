@@ -1,6 +1,6 @@
 #include <openhouse/math/Angle.hpp>
+#include <openhouse/testing/Check.hpp>
 
-#include <cassert>
 #include <cmath>
 #include <cstdio>
 
@@ -16,82 +16,82 @@ bool NearlyEqual(double a, double b, double eps = 1e-9) {
 
 static void TestFactoriesAndConversion() {
     const Angled fromDeg = Angled::FromDegrees(180.0);
-    assert(NearlyEqual(fromDeg.Radians(), 3.14159265358979323846));
+    OH_CHECK(NearlyEqual(fromDeg.Radians(), 3.14159265358979323846));
 
     const Angled fromRad = Angled::FromRadians(3.14159265358979323846);
-    assert(NearlyEqual(fromRad.Degrees(), 180.0));
+    OH_CHECK(NearlyEqual(fromRad.Degrees(), 180.0));
 
     // Round-trip: degrees -> Angle -> degrees.
     const Angled roundTrip = Angled::FromDegrees(37.5);
-    assert(NearlyEqual(roundTrip.Degrees(), 37.5));
+    OH_CHECK(NearlyEqual(roundTrip.Degrees(), 37.5));
 }
 
 static void TestDefaultIsZero() {
     const Angled a{};
-    assert(a.Radians() == 0.0);
-    assert(a.Degrees() == 0.0);
+    OH_CHECK(a.Radians() == 0.0);
+    OH_CHECK(a.Degrees() == 0.0);
 }
 
 static void TestEqualityAndOrdering() {
-    assert(Angled::FromDegrees(90.0) == Angled::FromDegrees(90.0));
-    assert(Angled::FromDegrees(45.0) < Angled::FromDegrees(90.0));
-    assert(Angled::FromDegrees(90.0) > Angled::FromDegrees(45.0));
+    OH_CHECK(Angled::FromDegrees(90.0) == Angled::FromDegrees(90.0));
+    OH_CHECK(Angled::FromDegrees(45.0) < Angled::FromDegrees(90.0));
+    OH_CHECK(Angled::FromDegrees(90.0) > Angled::FromDegrees(45.0));
 }
 
 static void TestArithmetic() {
     const Angled sum = Angled::FromDegrees(30.0) + Angled::FromDegrees(60.0);
-    assert(NearlyEqual(sum.Degrees(), 90.0));
+    OH_CHECK(NearlyEqual(sum.Degrees(), 90.0));
 
     const Angled diff = Angled::FromDegrees(90.0) - Angled::FromDegrees(30.0);
-    assert(NearlyEqual(diff.Degrees(), 60.0));
+    OH_CHECK(NearlyEqual(diff.Degrees(), 60.0));
 
     const Angled negated = -Angled::FromDegrees(45.0);
-    assert(NearlyEqual(negated.Degrees(), -45.0));
+    OH_CHECK(NearlyEqual(negated.Degrees(), -45.0));
 
     const Angled scaled = Angled::FromDegrees(30.0) * 3.0;
-    assert(NearlyEqual(scaled.Degrees(), 90.0));
+    OH_CHECK(NearlyEqual(scaled.Degrees(), 90.0));
 
     const Angled scaledLeft = 2.0 * Angled::FromDegrees(45.0);
-    assert(NearlyEqual(scaledLeft.Degrees(), 90.0));
+    OH_CHECK(NearlyEqual(scaledLeft.Degrees(), 90.0));
 
     const Angled divided = Angled::FromDegrees(90.0) / 3.0;
-    assert(NearlyEqual(divided.Degrees(), 30.0));
+    OH_CHECK(NearlyEqual(divided.Degrees(), 30.0));
 }
 
 static void TestCompoundAssignment() {
     Angled a = Angled::FromDegrees(10.0);
     a += Angled::FromDegrees(20.0);
-    assert(NearlyEqual(a.Degrees(), 30.0));
+    OH_CHECK(NearlyEqual(a.Degrees(), 30.0));
 
     a -= Angled::FromDegrees(5.0);
-    assert(NearlyEqual(a.Degrees(), 25.0));
+    OH_CHECK(NearlyEqual(a.Degrees(), 25.0));
 
     a *= 2.0;
-    assert(NearlyEqual(a.Degrees(), 50.0));
+    OH_CHECK(NearlyEqual(a.Degrees(), 50.0));
 }
 
 static void TestNormalizedUnsigned() {
-    assert(NearlyEqual(NormalizedUnsigned(Angled::FromDegrees(370.0)).Degrees(), 10.0));
-    assert(NearlyEqual(NormalizedUnsigned(Angled::FromDegrees(-10.0)).Degrees(), 350.0));
-    assert(NearlyEqual(NormalizedUnsigned(Angled::FromDegrees(720.0)).Degrees(), 0.0));
-    assert(NearlyEqual(NormalizedUnsigned(Angled::FromDegrees(0.0)).Degrees(), 0.0));
+    OH_CHECK(NearlyEqual(NormalizedUnsigned(Angled::FromDegrees(370.0)).Degrees(), 10.0));
+    OH_CHECK(NearlyEqual(NormalizedUnsigned(Angled::FromDegrees(-10.0)).Degrees(), 350.0));
+    OH_CHECK(NearlyEqual(NormalizedUnsigned(Angled::FromDegrees(720.0)).Degrees(), 0.0));
+    OH_CHECK(NearlyEqual(NormalizedUnsigned(Angled::FromDegrees(0.0)).Degrees(), 0.0));
 }
 
 static void TestNormalizedSigned() {
-    assert(NearlyEqual(NormalizedSigned(Angled::FromDegrees(0.0)).Degrees(), 0.0));
-    assert(NearlyEqual(NormalizedSigned(Angled::FromDegrees(180.0)).Degrees(), 180.0));
-    assert(NearlyEqual(NormalizedSigned(Angled::FromDegrees(-180.0)).Degrees(), 180.0));
-    assert(NearlyEqual(NormalizedSigned(Angled::FromDegrees(270.0)).Degrees(), -90.0));
-    assert(NearlyEqual(NormalizedSigned(Angled::FromDegrees(-270.0)).Degrees(), 90.0));
-    assert(NearlyEqual(NormalizedSigned(Angled::FromDegrees(540.0)).Degrees(), 180.0));
+    OH_CHECK(NearlyEqual(NormalizedSigned(Angled::FromDegrees(0.0)).Degrees(), 0.0));
+    OH_CHECK(NearlyEqual(NormalizedSigned(Angled::FromDegrees(180.0)).Degrees(), 180.0));
+    OH_CHECK(NearlyEqual(NormalizedSigned(Angled::FromDegrees(-180.0)).Degrees(), 180.0));
+    OH_CHECK(NearlyEqual(NormalizedSigned(Angled::FromDegrees(270.0)).Degrees(), -90.0));
+    OH_CHECK(NearlyEqual(NormalizedSigned(Angled::FromDegrees(-270.0)).Degrees(), 90.0));
+    OH_CHECK(NearlyEqual(NormalizedSigned(Angled::FromDegrees(540.0)).Degrees(), 180.0));
 }
 
 static void TestTrig() {
-    assert(NearlyEqual(Sin(Angled::FromDegrees(90.0)), 1.0));
-    assert(NearlyEqual(Cos(Angled::FromDegrees(0.0)), 1.0));
-    assert(NearlyEqual(Sin(Angled::FromDegrees(0.0)), 0.0));
-    assert(NearlyEqual(Cos(Angled::FromDegrees(180.0)), -1.0));
-    assert(NearlyEqual(Tan(Angled::FromDegrees(45.0)), 1.0));
+    OH_CHECK(NearlyEqual(Sin(Angled::FromDegrees(90.0)), 1.0));
+    OH_CHECK(NearlyEqual(Cos(Angled::FromDegrees(0.0)), 1.0));
+    OH_CHECK(NearlyEqual(Sin(Angled::FromDegrees(0.0)), 0.0));
+    OH_CHECK(NearlyEqual(Cos(Angled::FromDegrees(180.0)), -1.0));
+    OH_CHECK(NearlyEqual(Tan(Angled::FromDegrees(45.0)), 1.0));
 }
 
 // Compile-time sanity: construction/factories work in a constexpr context.

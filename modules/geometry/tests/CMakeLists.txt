@@ -4,6 +4,7 @@ add_executable(OpenHouseGeometryTests
 
 target_link_libraries(OpenHouseGeometryTests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Geometry
 )
 
@@ -20,6 +21,7 @@ add_executable(OpenHouseLine2Tests
 
 target_link_libraries(OpenHouseLine2Tests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Geometry
 )
 
@@ -36,6 +38,7 @@ add_executable(OpenHouseCircle2Tests
 
 target_link_libraries(OpenHouseCircle2Tests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Geometry
 )
 
@@ -52,6 +55,7 @@ add_executable(OpenHouseArc2Tests
 
 target_link_libraries(OpenHouseArc2Tests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Geometry
 )
 
@@ -68,6 +72,7 @@ add_executable(OpenHouseBoundingBox2Tests
 
 target_link_libraries(OpenHouseBoundingBox2Tests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Geometry
 )
 
@@ -84,6 +89,7 @@ add_executable(OpenHouseBoundsTests
 
 target_link_libraries(OpenHouseBoundsTests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Geometry
 )
 

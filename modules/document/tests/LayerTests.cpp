@@ -1,52 +1,52 @@
 #include <openhouse/document/Layer.hpp>
+#include <openhouse/testing/Check.hpp>
 
-#include <cassert>
 #include <cstdio>
 
 using namespace openhouse::document;
 
 static void TestConstructionDefaults() {
     const Layer layer("MyLayer");
-    assert(layer.Name() == "MyLayer");
-    assert(layer.Color() == "black");
-    assert(layer.GetLineType() == LineType::Continuous);
-    assert(layer.LineWeight() == 1.0);
-    assert(layer.Visible());
-    assert(!layer.Locked());
+    OH_CHECK(layer.Name() == "MyLayer");
+    OH_CHECK(layer.Color() == "black");
+    OH_CHECK(layer.GetLineType() == LineType::Continuous);
+    OH_CHECK(layer.LineWeight() == 1.0);
+    OH_CHECK(layer.Visible());
+    OH_CHECK(!layer.Locked());
 }
 
 static void TestSetColor() {
     Layer layer("Walls");
     layer.SetColor("red");
-    assert(layer.Color() == "red");
+    OH_CHECK(layer.Color() == "red");
 }
 
 static void TestSetLineType() {
     Layer layer("Dimensions");
     layer.SetLineType(LineType::Dashed);
-    assert(layer.GetLineType() == LineType::Dashed);
+    OH_CHECK(layer.GetLineType() == LineType::Dashed);
 }
 
 static void TestSetLineWeight() {
     Layer layer("Structural");
     layer.SetLineWeight(2.5);
-    assert(layer.LineWeight() == 2.5);
+    OH_CHECK(layer.LineWeight() == 2.5);
 }
 
 static void TestVisibilityToggle() {
     Layer layer("Hidden");
-    assert(layer.Visible());
+    OH_CHECK(layer.Visible());
     layer.SetVisible(false);
-    assert(!layer.Visible());
+    OH_CHECK(!layer.Visible());
     layer.SetVisible(true);
-    assert(layer.Visible());
+    OH_CHECK(layer.Visible());
 }
 
 static void TestLockedToggle() {
     Layer layer("Locked");
-    assert(!layer.Locked());
+    OH_CHECK(!layer.Locked());
     layer.SetLocked(true);
-    assert(layer.Locked());
+    OH_CHECK(layer.Locked());
 }
 
 static void TestNameImmutableAfterConstruction() {
@@ -54,7 +54,7 @@ static void TestNameImmutableAfterConstruction() {
     // runtime one. Nothing to assert here beyond construction; this
     // test exists as living documentation that Name() has no setter.
     const Layer layer("Fixed");
-    assert(layer.Name() == "Fixed");
+    OH_CHECK(layer.Name() == "Fixed");
 }
 
 int main() {

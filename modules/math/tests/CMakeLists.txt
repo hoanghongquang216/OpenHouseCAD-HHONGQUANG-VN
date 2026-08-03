@@ -4,6 +4,7 @@ add_executable(OpenHouseMathTests
 
 target_link_libraries(OpenHouseMathTests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Math
 )
 
@@ -20,6 +21,7 @@ add_executable(OpenHouseNumericTraitsTests
 
 target_link_libraries(OpenHouseNumericTraitsTests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Math
 )
 
@@ -36,6 +38,7 @@ add_executable(OpenHouseToleranceTests
 
 target_link_libraries(OpenHouseToleranceTests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Math
 )
 
@@ -52,6 +55,7 @@ add_executable(OpenHouseMatrix4Tests
 
 target_link_libraries(OpenHouseMatrix4Tests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Math
 )
 
@@ -68,6 +72,7 @@ add_executable(OpenHouseMatrix3Tests
 
 target_link_libraries(OpenHouseMatrix3Tests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Math
 )
 

@@ -1,6 +1,6 @@
 #include <openhouse/render/RenderDocument.hpp>
+#include <openhouse/testing/Check.hpp>
 
-#include <cassert>
 #include <cstdio>
 #include <string>
 
@@ -14,10 +14,10 @@ static void TestEmptyDocumentProducesEmptySvgBody() {
     RenderToSvg(doc, svg);
     const std::string content = svg.ToString();
 
-    assert(content.find("<circle") == std::string::npos);
-    assert(content.find("<line") == std::string::npos);
-    assert(content.find("<path") == std::string::npos);
-    assert(content.find("<svg") != std::string::npos); // shell still present
+    OH_CHECK(content.find("<circle") == std::string::npos);
+    OH_CHECK(content.find("<line") == std::string::npos);
+    OH_CHECK(content.find("<path") == std::string::npos);
+    OH_CHECK(content.find("<svg") != std::string::npos); // shell still present
 }
 
 static void TestSingleLineRenders() {
@@ -28,8 +28,8 @@ static void TestSingleLineRenders() {
     RenderToSvg(doc, svg);
     const std::string content = svg.ToString();
 
-    assert(content.find("<line") != std::string::npos);
-    assert(content.find(R"(x2="10")") != std::string::npos);
+    OH_CHECK(content.find("<line") != std::string::npos);
+    OH_CHECK(content.find(R"(x2="10")") != std::string::npos);
 }
 
 static void TestSingleCircleRenders() {
@@ -40,9 +40,9 @@ static void TestSingleCircleRenders() {
     RenderToSvg(doc, svg);
     const std::string content = svg.ToString();
 
-    assert(content.find("<circle") != std::string::npos);
-    assert(content.find(R"(r="3")") != std::string::npos);
-    assert(content.find(R"(fill="none")") != std::string::npos); // outline, not point marker
+    OH_CHECK(content.find("<circle") != std::string::npos);
+    OH_CHECK(content.find(R"(r="3")") != std::string::npos);
+    OH_CHECK(content.find(R"(fill="none")") != std::string::npos); // outline, not point marker
 }
 
 static void TestSingleArcRenders() {
@@ -53,7 +53,7 @@ static void TestSingleArcRenders() {
     RenderToSvg(doc, svg);
     const std::string content = svg.ToString();
 
-    assert(content.find("<path") != std::string::npos);
+    OH_CHECK(content.find("<path") != std::string::npos);
 }
 
 static void TestMixedDocumentAllShapesRender() {
@@ -77,9 +77,9 @@ static void TestMixedDocumentAllShapesRender() {
         return count;
     };
 
-    assert(countOccurrences("<line") == 1);
-    assert(countOccurrences("<circle") == 2);
-    assert(countOccurrences("<path") == 1);
+    OH_CHECK(countOccurrences("<line") == 1);
+    OH_CHECK(countOccurrences("<circle") == 2);
+    OH_CHECK(countOccurrences("<path") == 1);
 }
 
 static void TestOrderIsPreserved() {
@@ -95,9 +95,9 @@ static void TestOrderIsPreserved() {
 
     const auto firstPos = content.find(R"(cx="1")");
     const auto secondPos = content.find(R"(cx="2")");
-    assert(firstPos != std::string::npos);
-    assert(secondPos != std::string::npos);
-    assert(firstPos < secondPos);
+    OH_CHECK(firstPos != std::string::npos);
+    OH_CHECK(secondPos != std::string::npos);
+    OH_CHECK(firstPos < secondPos);
 }
 
 // --- Layer consumer tests (Spiral 2 / DOC-003 Milestone 2.3) --------------
@@ -111,7 +111,7 @@ static void TestLayerColorAppliedToStroke() {
     RenderToSvg(doc, svg);
     const std::string content = svg.ToString();
 
-    assert(content.find(R"(stroke="red")") != std::string::npos);
+    OH_CHECK(content.find(R"(stroke="red")") != std::string::npos);
 }
 
 static void TestLayerLineWeightAppliedToStrokeWidth() {
@@ -123,7 +123,7 @@ static void TestLayerLineWeightAppliedToStrokeWidth() {
     RenderToSvg(doc, svg);
     const std::string content = svg.ToString();
 
-    assert(content.find(R"(stroke-width="3.5")") != std::string::npos);
+    OH_CHECK(content.find(R"(stroke-width="3.5")") != std::string::npos);
 }
 
 static void TestDashedLineTypeProducesDashArray() {
@@ -135,7 +135,7 @@ static void TestDashedLineTypeProducesDashArray() {
     RenderToSvg(doc, svg);
     const std::string content = svg.ToString();
 
-    assert(content.find("stroke-dasharray=") != std::string::npos);
+    OH_CHECK(content.find("stroke-dasharray=") != std::string::npos);
 }
 
 static void TestContinuousLineTypeHasNoDashArray() {
@@ -147,7 +147,7 @@ static void TestContinuousLineTypeHasNoDashArray() {
     RenderToSvg(doc, svg);
     const std::string content = svg.ToString();
 
-    assert(content.find("stroke-dasharray=") == std::string::npos);
+    OH_CHECK(content.find("stroke-dasharray=") == std::string::npos);
 }
 
 static void TestHiddenLayerEntityIsNotRendered() {
@@ -159,7 +159,7 @@ static void TestHiddenLayerEntityIsNotRendered() {
     RenderToSvg(doc, svg);
     const std::string content = svg.ToString();
 
-    assert(content.find("<circle") == std::string::npos);
+    OH_CHECK(content.find("<circle") == std::string::npos);
 }
 
 // The exact scenario from Spiral 2's Milestone 2.4 demo requirement:
@@ -188,12 +188,12 @@ static void TestThreeLayerScenarioMatchesSpiral2Spec() {
     const std::string content = svg.ToString();
 
     // Walls: appears, black, no dash.
-    assert(content.find(R"(stroke="black")") != std::string::npos);
+    OH_CHECK(content.find(R"(stroke="black")") != std::string::npos);
     // Center: appears, gray, dashed.
-    assert(content.find(R"(stroke="gray")") != std::string::npos);
-    assert(content.find("stroke-dasharray=") != std::string::npos);
+    OH_CHECK(content.find(R"(stroke="gray")") != std::string::npos);
+    OH_CHECK(content.find("stroke-dasharray=") != std::string::npos);
     // Hidden: does not appear at all (its circle would be the only <circle>).
-    assert(content.find("<circle") == std::string::npos);
+    OH_CHECK(content.find("<circle") == std::string::npos);
     // Exactly two <line> elements (Walls + Center), not three renderable
     // shapes -- Hidden's circle must be excluded, not just invisible-styled.
     std::size_t lineCount = 0, pos = 0;
@@ -201,7 +201,7 @@ static void TestThreeLayerScenarioMatchesSpiral2Spec() {
         ++lineCount;
         pos += 5;
     }
-    assert(lineCount == 2);
+    OH_CHECK(lineCount == 2);
 }
 
 int main() {

@@ -15,8 +15,8 @@
 #include <openhouse/foundation/Optional.hpp>
 #include <openhouse/foundation/ScopeExit.hpp>
 #include <openhouse/foundation/Singleton.hpp>
+#include <openhouse/testing/Check.hpp>
 
-#include <cassert>
 #include <cstdio>
 #include <cstdint>
 #include <limits>
@@ -84,7 +84,7 @@ struct MoveProbe : NonCopyable {
 static void TestNonCopyableActuallyMoves() {
     MoveProbe a;
     MoveProbe b(std::move(a));
-    assert(b.wasMovedInto);
+    OH_CHECK(b.wasMovedInto);
 }
 
 // --- Singleton --------------------------------------------------------------
@@ -108,33 +108,40 @@ private:
 static void TestSingletonReturnsSameInstance() {
     Counter& a = Counter::Instance();
     Counter& b = Counter::Instance();
-    assert(&a == &b);
+    OH_CHECK(&a == &b);
 }
 
 static void TestSingletonStatePersists() {
     Counter::Instance().Increment();
     Counter::Instance().Increment();
-    assert(Counter::Instance().Value() == 2);
+    OH_CHECK(Counter::Instance().Value() == 2);
 }
 
 // --- ScopeExit / Finally -----------------------------------------------------
+//
+// All lambdas passed to ScopeExit/Finally below are explicitly `noexcept`.
+// ScopeExit's destructor calls its stored callable unconditionally; if
+// that callable could throw during stack unwinding from another
+// exception, that's undefined behavior/terminate. ScopeExit.hpp enforces
+// this with a static_assert requiring a noexcept-invocable callable, so
+// a non-noexcept lambda here is a hard compile error, not a latent risk.
 
 static void TestScopeExitRunsOnDestruction() {
     bool ran = false;
     {
         ScopeExit guard([&ran]() noexcept { ran = true; });
-        assert(!ran);
+        OH_CHECK(!ran);
     }
-    assert(ran);
+    OH_CHECK(ran);
 }
 
 static void TestFinallyRunsOnDestruction() {
     bool ran = false;
     {
         auto guard = Finally([&ran]() noexcept { ran = true; });
-        assert(!ran);
+        OH_CHECK(!ran);
     }
-    assert(ran);
+    OH_CHECK(ran);
 }
 
 static void TestFinallyRunsOnEarlyReturn() {
@@ -144,8 +151,8 @@ static void TestFinallyRunsOnEarlyReturn() {
         return 42; // guard must still fire before the function returns.
     };
     const int result = runsGuard();
-    assert(result == 42);
-    assert(ran);
+    OH_CHECK(result == 42);
+    OH_CHECK(ran);
 }
 
 // Merged from the top-level tests/foundation/FoundationTests.cpp (was
@@ -157,7 +164,7 @@ static void TestScopeExitRelease() {
         auto guard = Finally([&invoked]() noexcept { invoked = true; });
         guard.Release();
     }
-    assert(!invoked); // Release() must prevent the callable from running.
+    OH_CHECK(!invoked); // Release() must prevent the callable from running.
 }
 
 static void TestFoundationHelpers() {
@@ -166,11 +173,11 @@ static void TestFoundationHelpers() {
     static_assert(ToUnderlying(std::byte{1}) == 1);
 
     optional<int> value{42};
-    assert(value.has_value());
-    assert(kInvalid<unsigned int> == std::numeric_limits<unsigned int>::max());
+    OH_CHECK(value.has_value());
+    OH_CHECK(kInvalid<unsigned int> == std::numeric_limits<unsigned int>::max());
 
     const std::string formatted = format("{}", *value);
-    assert(formatted == "42");
+    OH_CHECK(formatted == "42");
 }
 
 int main() {
@@ -186,7 +193,7 @@ int main() {
     TestFoundationHelpers();
 
     // Runtime confirmation for kInvalid<int>, alongside the static_assert above.
-    assert(kInvalid<int> == std::numeric_limits<int>::max());
+    OH_CHECK(kInvalid<int> == std::numeric_limits<int>::max());
 
     std::puts("FoundationTests: all tests passed.");
     return 0;

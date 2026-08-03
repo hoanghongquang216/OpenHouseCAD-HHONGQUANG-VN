@@ -33,6 +33,7 @@ endif()
 # not a build of anything real yet.
 option(OPENHOUSE_BUILD_APP "Build the Qt6-based application (requires Qt6; not yet implemented)" OFF)
 
+add_subdirectory(modules/testing)
 add_subdirectory(modules/foundation)
 add_subdirectory(modules/geometry)
 add_subdirectory(modules/math)

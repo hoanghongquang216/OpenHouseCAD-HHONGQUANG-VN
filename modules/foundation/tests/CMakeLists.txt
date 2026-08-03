@@ -4,6 +4,7 @@ add_executable(OpenHouseFoundationTests
 
 target_link_libraries(OpenHouseFoundationTests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Foundation
 )
 

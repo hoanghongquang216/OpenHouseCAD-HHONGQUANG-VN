@@ -4,6 +4,7 @@ add_executable(OpenHouseSvgDocumentTests
 
 target_link_libraries(OpenHouseSvgDocumentTests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Render
 )
 
@@ -20,6 +21,7 @@ add_executable(OpenHouseRenderDocumentTests
 
 target_link_libraries(OpenHouseRenderDocumentTests
     PRIVATE
+        OpenHouse::Testing
         OpenHouse::Render
 )
 

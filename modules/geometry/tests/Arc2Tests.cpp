@@ -1,6 +1,6 @@
 #include <openhouse/geometry/Arc2.hpp>
+#include <openhouse/testing/Check.hpp>
 
-#include <cassert>
 #include <cmath>
 #include <cstdio>
 
@@ -19,34 +19,34 @@ bool NearlyEqual(const Point2d& a, const Point2d& b, double eps = 1e-9) {
 
 static void TestConstruction() {
     const Arc2d arc{Point2d{0.0, 0.0}, 5.0, 0.0, kPi};
-    assert(arc.center.x == 0.0 && arc.center.y == 0.0);
-    assert(arc.radius == 5.0);
-    assert(arc.startAngle == 0.0);
-    assert(NearlyEqual(arc.endAngle, kPi));
+    OH_CHECK(arc.center.x == 0.0 && arc.center.y == 0.0);
+    OH_CHECK(arc.radius == 5.0);
+    OH_CHECK(arc.startAngle == 0.0);
+    OH_CHECK(NearlyEqual(arc.endAngle, kPi));
 }
 
 static void TestEquality() {
     const Arc2d a{Point2d{0.0, 0.0}, 1.0, 0.0, 1.0};
     const Arc2d b{Point2d{0.0, 0.0}, 1.0, 0.0, 1.0};
     const Arc2d c{Point2d{0.0, 0.0}, 1.0, 0.0, 2.0};
-    assert(a == b);
-    assert(!(a == c));
+    OH_CHECK(a == b);
+    OH_CHECK(!(a == c));
 }
 
 static void TestSweep() {
     const Arc2d a{Point2d{0.0, 0.0}, 1.0, 0.0, kPi / 2.0};
-    assert(NearlyEqual(Sweep(a), kPi / 2.0));
+    OH_CHECK(NearlyEqual(Sweep(a), kPi / 2.0));
 
     // Clockwise sweep gives a negative result -- documented behavior,
     // not clamped.
     const Arc2d b{Point2d{0.0, 0.0}, 1.0, kPi / 2.0, 0.0};
-    assert(NearlyEqual(Sweep(b), -kPi / 2.0));
+    OH_CHECK(NearlyEqual(Sweep(b), -kPi / 2.0));
 }
 
 static void TestPointAtZeroAngleIsOnPositiveXAxis() {
     const Arc2d arc{Point2d{0.0, 0.0}, 5.0, 0.0, kPi};
     const Point2d p = PointAt(arc, 0.0);
-    assert(NearlyEqual(p, Point2d{5.0, 0.0}));
+    OH_CHECK(NearlyEqual(p, Point2d{5.0, 0.0}));
 }
 
 static void TestPointAtQuarterTurn() {
@@ -55,7 +55,7 @@ static void TestPointAtQuarterTurn() {
     // (matches Matrix4::RotationZ's direction elsewhere in this project).
     const Arc2d arc{Point2d{0.0, 0.0}, 5.0, 0.0, kPi};
     const Point2d p = PointAt(arc, kPi / 2.0);
-    assert(NearlyEqual(p, Point2d{0.0, 5.0}));
+    OH_CHECK(NearlyEqual(p, Point2d{0.0, 5.0}));
 }
 
 static void TestStartAndEndPoint() {
@@ -63,32 +63,32 @@ static void TestStartAndEndPoint() {
     const Point2d start = StartPoint(arc);
     const Point2d end = EndPoint(arc);
 
-    assert(NearlyEqual(start, Point2d{12.0, 10.0}));
-    assert(NearlyEqual(end, Point2d{10.0, 12.0}));
+    OH_CHECK(NearlyEqual(start, Point2d{12.0, 10.0}));
+    OH_CHECK(NearlyEqual(end, Point2d{10.0, 12.0}));
 }
 
 static void TestOffCenterArc() {
     const Arc2d arc{Point2d{5.0, 5.0}, 3.0, 0.0, kPi};
     const Point2d start = StartPoint(arc);
-    assert(NearlyEqual(start, Point2d{8.0, 5.0}));
+    OH_CHECK(NearlyEqual(start, Point2d{8.0, 5.0}));
 }
 
 static void TestLengthOfHalfCircle() {
     const Arc2d arc{Point2d{0.0, 0.0}, 10.0, 0.0, kPi};
     // Half a circle of radius 10: length = 10 * pi.
-    assert(NearlyEqual(Length(arc), 10.0 * kPi));
+    OH_CHECK(NearlyEqual(Length(arc), 10.0 * kPi));
 }
 
 static void TestLengthOfFullCircleMatchesCircumference() {
     const Arc2d arc{Point2d{0.0, 0.0}, 4.0, 0.0, 2.0 * kPi};
     const Circle2d fullCircle{Point2d{0.0, 0.0}, 4.0};
-    assert(NearlyEqual(Length(arc), Circumference(fullCircle)));
+    OH_CHECK(NearlyEqual(Length(arc), Circumference(fullCircle)));
 }
 
 static void TestLengthIsNonNegativeRegardlessOfSweepDirection() {
     const Arc2d clockwise{Point2d{0.0, 0.0}, 5.0, kPi / 2.0, 0.0};
-    assert(Length(clockwise) > 0.0);
-    assert(NearlyEqual(Length(clockwise), 5.0 * (kPi / 2.0)));
+    OH_CHECK(Length(clockwise) > 0.0);
+    OH_CHECK(NearlyEqual(Length(clockwise), 5.0 * (kPi / 2.0)));
 }
 
 // Compile-time sanity.

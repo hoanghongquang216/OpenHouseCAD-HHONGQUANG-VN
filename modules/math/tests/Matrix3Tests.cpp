@@ -1,6 +1,6 @@
 #include <openhouse/math/Matrix3.hpp>
+#include <openhouse/testing/Check.hpp>
 
-#include <cassert>
 #include <cmath>
 #include <cstdio>
 
@@ -19,32 +19,32 @@ bool NearlyEqual(const Point2d& a, const Point2d& b, double eps = 1e-9) {
 static void TestIdentityLeavesPointUnchanged() {
     const Matrix3d id = Matrix3d::Identity();
     const Point2d p{3.0, 4.0};
-    assert(NearlyEqual(id * p, p));
+    OH_CHECK(NearlyEqual(id * p, p));
 }
 
 static void TestTranslationMovesPoint() {
     const Matrix3d t = Matrix3d::Translation(Vector2d{10.0, -5.0});
     const Point2d p{1.0, 1.0};
-    assert(NearlyEqual(t * p, Point2d{11.0, -4.0}));
+    OH_CHECK(NearlyEqual(t * p, Point2d{11.0, -4.0}));
 }
 
 static void TestTranslationDoesNotAffectVector() {
     const Matrix3d t = Matrix3d::Translation(Vector2d{10.0, -5.0});
     const Vector2d v{1.0, 1.0};
-    assert(NearlyEqual(Point2d{(t * v).x, (t * v).y}, Point2d{1.0, 1.0}));
+    OH_CHECK(NearlyEqual(Point2d{(t * v).x, (t * v).y}, Point2d{1.0, 1.0}));
 }
 
 static void TestUniformScale() {
     const Matrix3d s = Matrix3d::UniformScale(3.0);
     const Point2d p{2.0, 2.0};
-    assert(NearlyEqual(s * p, Point2d{6.0, 6.0}));
+    OH_CHECK(NearlyEqual(s * p, Point2d{6.0, 6.0}));
 }
 
 static void TestRotation90Degrees() {
     // Same convention as Matrix4::RotationZ: (1,0) -> (0,1) at +90 deg.
     const Matrix3d r = Matrix3d::Rotation(Angled::FromDegrees(90.0));
     const Point2d p{1.0, 0.0};
-    assert(NearlyEqual(r * p, Point2d{0.0, 1.0}));
+    OH_CHECK(NearlyEqual(r * p, Point2d{0.0, 1.0}));
 }
 
 static void TestComposition() {
@@ -54,12 +54,12 @@ static void TestComposition() {
 
     const Point2d p{1.0, 1.0};
     // translate first (1,1)->(2,1), then scale by 2 -> (4,2)
-    assert(NearlyEqual(combined * p, Point2d{4.0, 2.0}));
+    OH_CHECK(NearlyEqual(combined * p, Point2d{4.0, 2.0}));
 }
 
 static void TestIdentityEquality() {
-    assert(Matrix3d::Identity() == Matrix3d::Identity());
-    assert(!(Matrix3d::Identity() == Matrix3d::Translation(Vector2d{1.0, 0.0})));
+    OH_CHECK(Matrix3d::Identity() == Matrix3d::Identity());
+    OH_CHECK(!(Matrix3d::Identity() == Matrix3d::Translation(Vector2d{1.0, 0.0})));
 }
 
 namespace {
