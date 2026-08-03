@@ -1,6 +1,6 @@
 #include <openhouse/render/RenderDocument.hpp>
-#include <openhouse/testing/Check.hpp>
 
+#include <openhouse/testing/Check.hpp>
 #include <cstdio>
 #include <string>
 
@@ -204,6 +204,148 @@ static void TestThreeLayerScenarioMatchesSpiral2Spec() {
     OH_CHECK(lineCount == 2);
 }
 
+// --- RenderOptions / selection highlight (SEL-003) -------------------------
+
+static void TestEmptySelectionProducesIdenticalOutputToNoSelectionArgument() {
+    // Regression test explicitly requested during SEL-003's design
+    // review: adding RenderOptions must not change the output of the
+    // pre-existing two-argument RenderToSvg(doc, svg) call at all.
+    Document doc;
+    doc.Add(Line2d{Point2d{10.0, 10.0}, Point2d{90.0, 10.0}}, "Walls");
+    doc.Add(Circle2d{Point2d{50.0, 50.0}, 20.0}, "Fixtures");
+    doc.Add(Arc2d{Point2d{0.0, 0.0}, 15.0, 0.0, 1.5}, "Doors");
+
+    SvgDocument oldStyle(200.0, 200.0);
+    RenderToSvg(doc, oldStyle); // pre-SEL-003 call site, unchanged
+
+    SvgDocument newStyleEmpty(200.0, 200.0);
+    RenderToSvg(doc, newStyleEmpty, RenderOptions{}); // explicit empty options
+
+    OH_CHECK(oldStyle.ToString() == newStyleEmpty.ToString());
+}
+
+static void TestSelectionWithUnknownIdDoesNotCrashAndRendersNormally() {
+    // Regression test explicitly requested during SEL-003's design
+    // review: a stale/unrelated EntityId in the SelectionSet (e.g. left
+    // over after Document::Clear()) must not crash RenderToSvg, and
+    // must produce output identical to having no selection at all,
+    // since it never matches any real entity.
+    Document doc;
+    doc.Add(Line2d{Point2d{10.0, 10.0}, Point2d{90.0, 10.0}}, "Walls");
+    doc.Add(Circle2d{Point2d{50.0, 50.0}, 20.0}, "Fixtures");
+
+    SvgDocument baseline(200.0, 200.0);
+    RenderToSvg(doc, baseline);
+
+    SelectionSet staleSelection;
+    OH_CHECK(staleSelection.Select(999999)); // no entity in `doc` has this ID
+    RenderOptions options;
+    options.selection = &staleSelection;
+
+    SvgDocument withStaleSelection(200.0, 200.0);
+    RenderToSvg(doc, withStaleSelection, options);
+
+    OH_CHECK(baseline.ToString() == withStaleSelection.ToString());
+}
+
+static void TestSelectedEntityGetsHighlightColorAndWiderStroke() {
+    Document doc;
+    doc.FindLayer("0")->SetColor("black");
+    doc.FindLayer("0")->SetLineWeight(2.0);
+    const EntityId lineId = doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{10.0, 0.0}});
+
+    SelectionSet sel;
+    OH_CHECK(sel.Select(lineId));
+    RenderOptions options;
+    options.selection = &sel;
+
+    SvgDocument svg(200.0, 200.0);
+    RenderToSvg(doc, svg, options);
+    const std::string content = svg.ToString();
+
+    OH_CHECK(content.find(R"(stroke="#ff0000")") != std::string::npos);
+    OH_CHECK(content.find(R"(stroke-width="3.5")") != std::string::npos); // 2.0 + 1.5
+    OH_CHECK(content.find(R"(stroke="black")") == std::string::npos); // fully overridden
+}
+
+static void TestUnselectedEntityKeepsOriginalLayerStyle() {
+    Document doc;
+    doc.FindLayer("0")->SetColor("black");
+    doc.FindLayer("0")->SetLineWeight(2.0);
+    doc.Add(Circle2d{Point2d{50.0, 50.0}, 20.0}); // never selected
+
+    const SelectionSet emptySel; // valid pointer, but selects nothing
+    RenderOptions options;
+    options.selection = &emptySel;
+
+    SvgDocument svg(200.0, 200.0);
+    RenderToSvg(doc, svg, options);
+    const std::string content = svg.ToString();
+
+    OH_CHECK(content.find(R"(stroke="black")") != std::string::npos);
+    OH_CHECK(content.find(R"(stroke-width="2")") != std::string::npos);
+    OH_CHECK(content.find("#ff0000") == std::string::npos);
+}
+
+static void TestSelectedEntityRendersAfterUnselectedRegardlessOfAddOrder() {
+    // The line is added FIRST (so it would naturally draw first / lower
+    // in Z-order under simple document-order rendering), but it's the
+    // SELECTED one -- it must still end up appearing AFTER (on top of)
+    // the unselected circle in the SVG output.
+    Document doc;
+    const EntityId lineId = doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{10.0, 0.0}});
+    doc.Add(Circle2d{Point2d{50.0, 50.0}, 20.0});
+
+    SelectionSet sel;
+    OH_CHECK(sel.Select(lineId));
+    RenderOptions options;
+    options.selection = &sel;
+
+    SvgDocument svg(200.0, 200.0);
+    RenderToSvg(doc, svg, options);
+    const std::string content = svg.ToString();
+
+    const auto circlePos = content.find("<circle");
+    const auto linePos = content.find("<line");
+    OH_CHECK(circlePos != std::string::npos);
+    OH_CHECK(linePos != std::string::npos);
+    OH_CHECK(circlePos < linePos); // unselected circle drawn before selected line
+}
+
+static void TestSelectedEntityKeepsItsOwnDashArray() {
+    // Per SEL-003's design review: selection overrides color and
+    // stroke-width, but NOT the dash pattern -- a selected dashed
+    // centerline should still visually read as "dashed" while
+    // highlighted, not snap to solid.
+    Document doc;
+    Layer& center = doc.CreateLayer("Center");
+    center.SetLineType(LineType::Dashed);
+    const EntityId id = doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{10.0, 0.0}}, "Center");
+
+    SelectionSet sel;
+    OH_CHECK(sel.Select(id));
+    RenderOptions options;
+    options.selection = &sel;
+
+    SvgDocument svg(200.0, 200.0);
+    RenderToSvg(doc, svg, options);
+    const std::string content = svg.ToString();
+
+    OH_CHECK(content.find(R"(stroke="#ff0000")") != std::string::npos);
+    OH_CHECK(content.find("stroke-dasharray=") != std::string::npos); // still dashed
+}
+
+static void TestNullSelectionPointerBehavesLikeNoSelection() {
+    Document doc;
+    doc.Add(Circle2d{Point2d{50.0, 50.0}, 20.0});
+
+    RenderOptions options; // options.selection stays nullptr (the default)
+
+    SvgDocument svg(200.0, 200.0);
+    RenderToSvg(doc, svg, options); // must not dereference a null selection
+    OH_CHECK(svg.ToString().find("#ff0000") == std::string::npos);
+}
+
 int main() {
     TestEmptyDocumentProducesEmptySvgBody();
     TestSingleLineRenders();
@@ -218,6 +360,14 @@ int main() {
     TestContinuousLineTypeHasNoDashArray();
     TestHiddenLayerEntityIsNotRendered();
     TestThreeLayerScenarioMatchesSpiral2Spec();
+
+    TestEmptySelectionProducesIdenticalOutputToNoSelectionArgument();
+    TestSelectionWithUnknownIdDoesNotCrashAndRendersNormally();
+    TestSelectedEntityGetsHighlightColorAndWiderStroke();
+    TestUnselectedEntityKeepsOriginalLayerStyle();
+    TestSelectedEntityRendersAfterUnselectedRegardlessOfAddOrder();
+    TestSelectedEntityKeepsItsOwnDashArray();
+    TestNullSelectionPointerBehavesLikeNoSelection();
 
     std::puts("RenderDocumentTests: all tests passed.");
     return 0;
