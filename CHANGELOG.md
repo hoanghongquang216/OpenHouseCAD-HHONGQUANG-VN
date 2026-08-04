@@ -11,6 +11,67 @@ consumers yet.
 
 Nothing yet.
 
+## [snap-core-001] - Snap query: Endpoint, Midpoint, Center
+
+First CAD-core Sprint after the DXF-003/ROBUST-002/003a/LAYER-PROPS-001
+sequence. Closes the Snap gap found by the dedicated Snap audit
+(Spiral 6, previously pure comment-only placeholders, no code).
+Deliberately Endpoint/Midpoint/Center only -- see
+`docs/SNAP_BACKLOG.md`'s `SNAP-INTERSECTION-001` for why Intersection
+is its own, later Sprint. No UI/Qt/cursor/marker/rubber-band -- pure
+query API only, mirroring how `document::HitTest()` was itself built
+and shipped well before any interactive UI exists.
+
+### Added
+- `geometry::Midpoint(const Arc2<T>&)` (`Arc2.hpp`) -- the point at an
+  arc's angular midpoint (halfway between `startAngle` and `endAngle`
+  along the sweep), matching Snap's Midpoint semantics for an arc. Not
+  the chord midpoint between `StartPoint`/`EndPoint` -- that would cut
+  inside the arc for anything but a semicircle. `Line2` already had its
+  own `Midpoint()`; `Arc2` didn't, until now.
+- `document::SnapType` (`Snap.hpp`, new file) -- `Endpoint`, `Midpoint`,
+  `Center`. Included as a real enum from the start (unlike
+  `DxfErrorCode`, deferred in `DXF-ROBUST-003b` for lack of a
+  consumer) because distinguishing snap kind is the feature itself, not
+  an internal detail -- a future UI needs it to show a different marker
+  per kind.
+- `document::SnapResult` -- entity id, `SnapType`, the matched point,
+  and the distance from the query point (same "keep distance, avoid
+  recomputing" reasoning as `document::HitResult`).
+- `document::FindSnapPoint(doc, point, tolerance)` -- the query itself.
+  Mirrors `document::HitTest()`'s exact shape (`Document + Point2 +
+  tolerance -> single nearest result`), including its behavior on
+  hidden layers (excluded) and locked layers (NOT excluded -- Locked
+  means "cannot be edited," not "cannot be queried," same reasoning as
+  `HitTest`'s own comment on this).
+- 12 regression tests in `SnapTests.cpp`, including a dedicated
+  regression guard (`TestSnapFindsArcCenterFarOutsideArcsOwnBoundingBox`)
+  for a design decision made during this Sprint -- see "Design decision"
+  below.
+
+### Design decision: no AABB-dilate fast-reject (unlike `HitTest`)
+`document::HitTest()` dilates each shape's `Bounds()` by the tolerance
+and cheaply rejects a query point outside that box before running the
+more expensive `DistanceToShape()`. `FindSnapPoint()` deliberately does
+**not** do this, and it would have been a real bug, not just a missed
+optimization, to copy the pattern: an `Arc2`'s `Center` candidate can
+sit well outside the arc's own `Bounds()` (which covers only the drawn
+curve) -- e.g. a short arc segment far around its circle from its own
+center. Filtering by the curve's bounding box first would silently
+discard an in-tolerance `Center` candidate whenever the query point was
+near the center but far from the swept curve itself. Snap's per-entity
+work is also already cheap (a handful of point-to-point distance
+checks, not `HitTest`'s projection math), so the optimization had less
+to offer here even before that correctness problem. Found and avoided
+during this Sprint's own design pass, not discovered as a bug later --
+see `Snap.hpp`'s own comment and the dedicated regression test.
+
+### Docs
+- `docs/SNAP_BACKLOG.md` (new file) -- `SNAP-INTERSECTION-001` entry,
+  plus a note that this is now the *second* module-specific backlog
+  file, which is itself a documentation-organization question
+  (`backlog/` subdirectory?) left open rather than decided mid-Sprint.
+
 ## [dxf-layer-props-001] - Import layer color and linetype from TABLES/LAYER
 
 Closes the gap found by the DXF-004 appearance audit: `document::Layer`
