@@ -74,4 +74,68 @@ namespace openhouse::document {
     return count;
 }
 
+[[nodiscard]] inline bool RotateEntity(Document& doc, EntityId id, double radians,
+                                        geometry::Point2d pivot) {
+    if (!CanTransform(doc, id)) {
+        return false;
+    }
+    Entity* entity = doc.FindEntityMutable(id);
+    entity->shape = std::visit(
+        [radians, pivot](const auto& shape) -> Shape {
+            return geometry::Rotate(shape, radians, pivot);
+        },
+        entity->shape);
+    return true;
+}
+
+[[nodiscard]] inline std::size_t RotateSelection(Document& doc, const SelectionSet& selection,
+                                                  double radians, geometry::Point2d pivot) {
+    std::size_t count = 0;
+    for (const EntityId id : selection.Ids()) {
+        if (RotateEntity(doc, id, radians, pivot)) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+// The real, always-enforced gate for Scale's "factor must be strictly
+// positive" business rule (see geometry::Scale's own comment: the
+// geometry layer only OH_ASSERTs this as a debug-time sanity net, it
+// does not reject an invalid factor at runtime). factor == 0 collapses
+// a shape to a single point (a real, unrecoverable loss of geometry,
+// not a legitimate transform); factor < 0 is mathematically a
+// reflection, which Spiral 4 explicitly does not support yet -- see
+// this file's own comment history / the design review that settled on
+// requiring factor > 0 for this Spiral (mirroring is deferred to its
+// own future Spiral, since it interacts with Arc2's sweep direction in
+// ways that need their own careful design, not a quick allowance here).
+[[nodiscard]] inline bool ScaleEntity(Document& doc, EntityId id, double factor,
+                                       geometry::Point2d pivot) {
+    if (factor <= 0.0) {
+        return false;
+    }
+    if (!CanTransform(doc, id)) {
+        return false;
+    }
+    Entity* entity = doc.FindEntityMutable(id);
+    entity->shape = std::visit(
+        [factor, pivot](const auto& shape) -> Shape {
+            return geometry::Scale(shape, factor, pivot);
+        },
+        entity->shape);
+    return true;
+}
+
+[[nodiscard]] inline std::size_t ScaleSelection(Document& doc, const SelectionSet& selection,
+                                                 double factor, geometry::Point2d pivot) {
+    std::size_t count = 0;
+    for (const EntityId id : selection.Ids()) {
+        if (ScaleEntity(doc, id, factor, pivot)) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 }

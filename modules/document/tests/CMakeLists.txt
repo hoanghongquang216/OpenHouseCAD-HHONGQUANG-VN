@@ -82,3 +82,54 @@ add_test(
     NAME OpenHouseDocumentTransformTests
     COMMAND OpenHouseDocumentTransformTests
 )
+
+add_executable(OpenHouseCommandTests
+    CommandTests.cpp
+)
+
+target_link_libraries(OpenHouseCommandTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+
+openhouse_enable_warnings(OpenHouseCommandTests)
+
+add_test(
+    NAME OpenHouseCommandTests
+    COMMAND OpenHouseCommandTests
+)
+
+add_executable(OpenHouseMacroCommandTests
+    MacroCommandTests.cpp
+)
+
+target_link_libraries(OpenHouseMacroCommandTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+
+openhouse_enable_warnings(OpenHouseMacroCommandTests)
+
+add_test(
+    NAME OpenHouseMacroCommandTests
+    COMMAND OpenHouseMacroCommandTests
+)
+
+add_executable(OpenHouseCommandHistoryTests
+    CommandHistoryTests.cpp
+)
+
+target_link_libraries(OpenHouseCommandHistoryTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+
+openhouse_enable_warnings(OpenHouseCommandHistoryTests)
+
+add_test(
+    NAME OpenHouseCommandHistoryTests
+    COMMAND OpenHouseCommandHistoryTests
+)
