@@ -1,6 +1,7 @@
 #pragma once
 
 #include <openhouse/document/Document.hpp>
+#include <openhouse/foundation/CMath.hpp>
 #include <openhouse/foundation/Expected.hpp>
 #include <openhouse/foundation/String.hpp>
 #include <openhouse/geometry/Arc2.hpp>
@@ -160,6 +161,134 @@ inline foundation::string FindString(const EntityChunk& chunk, int code,
     return foundation::string(fallback);
 }
 
+// A single LWPOLYLINE vertex. `bulge` describes the segment FROM this
+// vertex TO the next one (per DXF convention) -- 0 means a straight
+// line, non-zero means an arc (see BulgeToArc below).
+struct LwPolylineVertex {
+    double x = 0.0;
+    double y = 0.0;
+    double bulge = 0.0;
+};
+
+// Extracts an LWPOLYLINE's vertex list from its chunk. Unlike LINE/
+// CIRCLE/ARC (one value per group code), LWPOLYLINE repeats group code
+// 10 once per vertex -- each 10 (X) starts a new vertex; subsequent 20
+// (Y, required) and 42 (bulge, optional, defaults to 0) belong to that
+// same vertex until the next 10 appears.
+//
+// Returns std::nullopt if the vertex data itself is malformed (a
+// missing/unparseable X or Y) -- that's severe enough that nothing
+// trustworthy can be built from this entity, so the caller skips it
+// entirely (see DXF-002's design review: individual malformed entities
+// are skipped, not fatal to the whole file). A malformed bulge value is
+// treated more leniently -- it just falls back to 0 (a straight
+// segment), since losing curvature information for one segment is a
+// much smaller degradation than discarding the entity's position data
+// entirely.
+[[nodiscard]] inline std::optional<std::vector<LwPolylineVertex>> ExtractLwPolylineVertices(
+    const EntityChunk& chunk) {
+    std::vector<LwPolylineVertex> vertices;
+    for (const auto& pair : chunk.codes) {
+        if (pair.code == 10) {
+            std::size_t consumed = 0;
+            double x = 0.0;
+            try {
+                x = std::stod(pair.value, &consumed);
+            } catch (...) {
+                return std::nullopt;
+            }
+            if (consumed == 0) {
+                return std::nullopt;
+            }
+            vertices.push_back(LwPolylineVertex{x, 0.0, 0.0});
+        } else if (pair.code == 20) {
+            if (vertices.empty()) {
+                return std::nullopt; // Y with no preceding X -- malformed
+            }
+            std::size_t consumed = 0;
+            try {
+                vertices.back().y = std::stod(pair.value, &consumed);
+            } catch (...) {
+                return std::nullopt;
+            }
+            if (consumed == 0) {
+                return std::nullopt;
+            }
+        } else if (pair.code == 42 && !vertices.empty()) {
+            try {
+                vertices.back().bulge = std::stod(pair.value);
+            } catch (...) {
+                // Malformed bulge specifically: leave it at the default
+                // 0 (straight segment) rather than discarding the whole
+                // entity -- see this function's own comment above.
+            }
+        }
+    }
+    return vertices;
+}
+
+// Converts a bulge-defined polyline segment (P1 -> P2, signed bulge)
+// into an Arc2. Returns std::nullopt only for a genuinely degenerate
+// input (P1 and P2 coincide, so no chord/arc exists).
+//
+// The sign handling here was the single most error-prone part of
+// DXF-002 (bulge's sign indicates CCW vs CW, and getting that backwards
+// silently produces a mirror-image arc through the WRONG side of the
+// chord -- a bug that looks like reasonable geometry, not a crash).
+// Verified before integration against 20+ randomized (point, point,
+// bulge) triples by independently reconstructing P1/P2 from the
+// resulting Arc2 via its own start/end-angle evaluation and confirming
+// they match the original input to within floating-point tolerance --
+// see this Spiral's design-review discussion for the derivation.
+[[nodiscard]] inline std::optional<geometry::Arc2d> BulgeToArc(geometry::Point2d p1,
+                                                                 geometry::Point2d p2,
+                                                                 double bulge) {
+    const double dx = p2.x - p1.x;
+    const double dy = p2.y - p1.y;
+    const double chordLen = foundation::hypot(dx, dy);
+    if (chordLen == 0.0) {
+        return std::nullopt;
+    }
+
+    const double theta = 4.0 * foundation::atan(bulge); // signed, CCW-positive
+    const double alpha = theta / 2.0;
+    const double sinAlpha = foundation::sin(alpha);
+    if (sinAlpha == 0.0) {
+        return std::nullopt; // defensive; shouldn't occur for bulge != 0
+    }
+
+    // Deliberately kept SIGNED through this step (not abs'd yet) -- the
+    // sign of signedRadius, combined with cos(alpha), is what correctly
+    // places the center on the CW vs CCW side of the chord. Taking the
+    // absolute value here (a natural-looking "radius must be positive"
+    // simplification) was the actual bug caught during verification: it
+    // collapses the CW and CCW cases onto the same center, which is
+    // wrong.
+    const double signedRadius = chordLen / (2.0 * sinAlpha);
+    const double apothem = signedRadius * foundation::cos(alpha);
+
+    const double ux = dx / chordLen;
+    const double uy = dy / chordLen;
+    const double perpX = -uy; // rotate chord direction +90 degrees (CCW)
+    const double perpY = ux;
+
+    const geometry::Point2d center{
+        (p1.x + p2.x) / 2.0 + perpX * apothem,
+        (p1.y + p2.y) / 2.0 + perpY * apothem,
+    };
+    const double radius = foundation::abs(signedRadius); // abs only at the very end
+
+    const double startAngle = foundation::atan2(p1.y - center.y, p1.x - center.x);
+    // endAngle is startAngle + theta directly, NOT atan2(p2 - center) --
+    // the latter could differ from startAngle+theta by a multiple of
+    // 2*pi depending on atan2's branch, which would silently produce
+    // the wrong sweep direction/magnitude even though both angles
+    // describe the same two points.
+    const double endAngle = startAngle + theta;
+
+    return geometry::Arc2d{center, radius, startAngle, endAngle};
+}
+
 } // namespace detail
 
 inline std::optional<GroupCodePair> Tokenizer::Next() {
@@ -288,6 +417,55 @@ inline foundation::expected<document::Document, foundation::string> ParseDxfStre
             const double endRad = math::Angled::FromDegrees(*endDeg).Radians();
             doc.Add(geometry::Arc2d{geometry::Point2d{*cx, *cy}, *radius, startRad, endRad},
                     layer);
+        } else if (chunk.type == "LWPOLYLINE") {
+            // LWPOLYLINE is not stored as a single Document entity --
+            // it's decomposed into its constituent Line2/Arc2 segments
+            // at import time (see DXF-002's design review), matching
+            // Shape's existing closed set (variant<Line2, Circle2,
+            // Arc2>) exactly rather than extending it for one entity
+            // type. Each straight (bulge == 0) segment becomes a Line2;
+            // each curved segment becomes an Arc2 via BulgeToArc.
+            const auto vertices = detail::ExtractLwPolylineVertices(chunk);
+            if (!vertices.has_value()) {
+                // Malformed vertex data (bad/missing X or Y) -- skip
+                // this entity, same as an unsupported entity type would
+                // be (see this file's top-level comment on scope): a
+                // single bad entity should not fail the whole import.
+                continue;
+            }
+
+            const auto flagsValue = detail::FindDouble(chunk, 70);
+            const bool closed =
+                flagsValue.has_value() && (static_cast<int>(*flagsValue) & 1) != 0;
+
+            // Degenerate: fewer than 2 vertices means not even one
+            // segment can be formed. Skipped, not an error -- same
+            // reasoning as above.
+            if (vertices->size() < 2) {
+                continue;
+            }
+
+            const std::size_t segmentCount = closed ? vertices->size() : vertices->size() - 1;
+            for (std::size_t i = 0; i < segmentCount; ++i) {
+                const auto& v1 = (*vertices)[i];
+                const auto& v2 = (*vertices)[(i + 1) % vertices->size()];
+                const geometry::Point2d p1{v1.x, v1.y};
+                const geometry::Point2d p2{v2.x, v2.y};
+
+                if (v1.bulge == 0.0) {
+                    doc.Add(geometry::Line2d{p1, p2}, layer);
+                } else if (const auto arc = detail::BulgeToArc(p1, p2, v1.bulge);
+                           arc.has_value()) {
+                    doc.Add(*arc, layer);
+                } else {
+                    // BulgeToArc only fails for coincident p1/p2 (a
+                    // zero-length segment) -- fall back to a Line2 in
+                    // that case too; it'll just be a degenerate,
+                    // effectively invisible line rather than a lost
+                    // segment.
+                    doc.Add(geometry::Line2d{p1, p2}, layer);
+                }
+            }
         }
         // Any other entity type: recognized as a chunk, intentionally
         // skipped -- see this header's top-level comment on scope.

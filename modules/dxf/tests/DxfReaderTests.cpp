@@ -151,6 +151,112 @@ static void TestEmptyEntitiesSectionProducesEmptyDocument() {
     OH_CHECK(result->Layers().size() == 1); // just the default "0"
 }
 
+// --- LWPOLYLINE (DXF-002) --------------------------------------------
+
+static void TestLwPolylineClosedRectangleProducesFourLines() {
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLWPOLYLINE\n8\nWalls\n90\n4\n70\n1\n" // 70=1 -> closed
+        "10\n0.0\n20\n0.0\n"
+        "10\n10.0\n20\n0.0\n"
+        "10\n10.0\n20\n10.0\n"
+        "10\n0.0\n20\n10.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    // 4 vertices, closed -> 4 segments (including the wraparound one).
+    OH_CHECK(result->Count() == 4);
+    for (const auto& entity : result->Entities()) {
+        OH_CHECK(std::holds_alternative<geometry::Line2d>(entity.shape));
+        OH_CHECK(entity.layer == "Walls");
+    }
+}
+
+static void TestLwPolylineOpenProducesOneFewerSegmentThanVertices() {
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLWPOLYLINE\n8\n0\n90\n3\n70\n0\n" // 70=0 -> not closed
+        "10\n0.0\n20\n0.0\n"
+        "10\n5.0\n20\n0.0\n"
+        "10\n10.0\n20\n0.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    // 3 vertices, open -> only 2 segments (no wraparound to vertex 0).
+    OH_CHECK(result->Count() == 2);
+}
+
+// The single most important LWPOLYLINE test: a bulge=1 segment must
+// produce an Arc2 matching the well-known "bulge 1 == semicircle"
+// case, verified independently (Python + 20 randomized cases) before
+// this formula was integrated -- see DXF-002's design review.
+static void TestLwPolylineBulgeOneProducesSemicircleArc() {
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLWPOLYLINE\n8\n0\n90\n2\n70\n0\n"
+        "10\n0.0\n20\n0.0\n42\n1.0\n" // vertex 0: bulge 1 for segment 0->1
+        "10\n2.0\n20\n0.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->Count() == 1);
+
+    const auto* arc = std::get_if<geometry::Arc2d>(&result->Entities()[0].shape);
+    OH_CHECK(arc != nullptr);
+    OH_CHECK(NearlyEqual(arc->center.x, 1.0));
+    OH_CHECK(NearlyEqual(arc->center.y, 0.0));
+    OH_CHECK(NearlyEqual(arc->radius, 1.0));
+}
+
+static void TestLwPolylineMixedStraightAndCurvedSegments() {
+    // Vertex 0->1: straight (bulge 0, default). Vertex 1->2: curved
+    // (bulge != 0). Confirms both code paths coexist correctly within
+    // a single entity.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLWPOLYLINE\n8\n0\n90\n3\n70\n0\n"
+        "10\n0.0\n20\n0.0\n"                // vertex 0, no bulge -> straight to 1
+        "10\n5.0\n20\n0.0\n42\n1.0\n"       // vertex 1, bulge 1 -> arc to 2
+        "10\n7.0\n20\n0.0\n"                // vertex 2
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->Count() == 2);
+    OH_CHECK(std::holds_alternative<geometry::Line2d>(result->Entities()[0].shape));
+    OH_CHECK(std::holds_alternative<geometry::Arc2d>(result->Entities()[1].shape));
+}
+
+// Per DXF-002's design review: a degenerate single-vertex polyline
+// (open, so zero possible segments) is SKIPPED, not treated as a parse
+// error for the whole file -- a well-formed entity appearing after it
+// must still parse correctly.
+static void TestLwPolylineSingleVertexIsSkippedNotFatal() {
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLWPOLYLINE\n8\n0\n90\n1\n70\n0\n"
+        "10\n5.0\n20\n5.0\n"
+        "0\nLINE\n8\n0\n10\n0.0\n20\n0.0\n11\n1.0\n21\n1.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->Count() == 1); // only the LINE; the degenerate LWPOLYLINE is gone
+    OH_CHECK(std::holds_alternative<geometry::Line2d>(result->Entities()[0].shape));
+}
+
+static void TestLwPolylineWithoutClosedFlagDefaultsToOpen() {
+    // Group code 70 entirely absent -- must default to "not closed",
+    // matching DXF's own documented default (flag bit unset).
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLWPOLYLINE\n8\n0\n90\n2\n"
+        "10\n0.0\n20\n0.0\n"
+        "10\n1.0\n20\n1.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->Count() == 1); // 2 vertices, open -> exactly 1 segment
+}
+
 int main() {
     TestParseLineEntity();
     TestParseCircleEntity();
@@ -163,6 +269,13 @@ int main() {
     TestEntityWithoutLayerCodeDefaultsToLayerZero();
     TestFileNotFoundIsAnError();
     TestEmptyEntitiesSectionProducesEmptyDocument();
+
+    TestLwPolylineClosedRectangleProducesFourLines();
+    TestLwPolylineOpenProducesOneFewerSegmentThanVertices();
+    TestLwPolylineBulgeOneProducesSemicircleArc();
+    TestLwPolylineMixedStraightAndCurvedSegments();
+    TestLwPolylineSingleVertexIsSkippedNotFatal();
+    TestLwPolylineWithoutClosedFlagDefaultsToOpen();
 
     std::puts("DxfReaderTests: all tests passed.");
     return 0;

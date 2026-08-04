@@ -11,6 +11,7 @@ using std::cos;
 using std::tan;
 using std::asin;
 using std::acos;
+using std::atan;
 using std::atan2;
 using std::hypot;
 using std::floor;
