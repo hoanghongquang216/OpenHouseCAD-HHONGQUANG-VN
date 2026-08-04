@@ -1,11 +1,32 @@
 #pragma once
 
 #include <openhouse/foundation/Algorithm.hpp>
-#include <openhouse/foundation/CMath.hpp>
 #include <openhouse/foundation/Concepts.hpp>
 #include <openhouse/math/NumericTraits.hpp>
 
 namespace openhouse::math {
+
+namespace detail {
+
+// A hand-rolled absolute value, deliberately NOT delegating to
+// std::abs/foundation::abs here. Root-caused via a real Clang+libc++ CI
+// failure (see CHANGELOG.md / commit history): libc++ declares a
+// double abs(double) overload in <stdlib.h> that is NOT constexpr
+// (unlike <cmath>'s std::abs(double), constexpr since C++23), and
+// under Clang, unqualified `abs()` inside these constexpr functions
+// resolved to that non-constexpr overload -- breaking every
+// static_assert-based compile-time use of NearlyEqual/IsZero (this
+// project relies on that -- see ToleranceTests.cpp). GCC's libstdc++
+// does not have this ambiguity, so the bug was invisible until Clang
+// was added to CI. A three-line ternary sidesteps the entire
+// cross-standard-library overload question rather than depending on
+// any particular <cmath>/<cstdlib> implementation detail.
+template<foundation::FloatingPoint T>
+[[nodiscard]] constexpr T Abs(T value) noexcept {
+    return value < T{0} ? -value : value;
+}
+
+} // namespace detail
 
 // Combined absolute + relative epsilon comparison ("essentially equal" /
 // Knuth-style), rather than a single fixed absolute tolerance.
@@ -22,17 +43,17 @@ namespace openhouse::math {
 template<foundation::FloatingPoint T>
 [[nodiscard]] constexpr bool NearlyEqual(
     T a, T b, T tolerance = NumericTraits<T>::DefaultTolerance) noexcept {
-    const T diff = foundation::abs(a - b);
+    const T diff = detail::Abs(a - b);
     if (diff <= tolerance) {
         return true;
     }
-    const T largest = foundation::max(foundation::abs(a), foundation::abs(b));
+    const T largest = foundation::max(detail::Abs(a), detail::Abs(b));
     return diff <= largest * tolerance;
 }
 
 template<foundation::FloatingPoint T>
 [[nodiscard]] constexpr bool IsZero(T value, T tolerance = NumericTraits<T>::DefaultTolerance) noexcept {
-    return foundation::abs(value) <= tolerance;
+    return detail::Abs(value) <= tolerance;
 }
 
 }
