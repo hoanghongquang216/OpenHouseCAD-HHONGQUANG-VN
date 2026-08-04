@@ -151,6 +151,203 @@ static void TestEmptyEntitiesSectionProducesEmptyDocument() {
     OH_CHECK(result->Layers().size() == 1); // just the default "0"
 }
 
+// DXF-003 (audit finding): a group code is never legitimately blank, so
+// a stray blank line between two otherwise well-formed entities (from
+// naive line-ending conversion, manual editing, etc.) must be skipped,
+// not treated as end-of-stream. Before this fix, the tokenizer stopped
+// reading right here, which made the ENTITIES section look like it was
+// missing its ENDSEC -- a misleading error on a well-formed file, and
+// (had ENDSEC appeared before the blank line in a different layout) a
+// path to silently losing entities instead of erroring at all.
+static void TestBlankLineWithinEntitiesSectionIsSkippedNotFatal() {
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\n0\n10\n0.0\n20\n0.0\n11\n1.0\n21\n1.0\n"
+        "\n" // stray blank line between entities
+        "0\nCIRCLE\n8\n0\n10\n5.0\n20\n5.0\n40\n2.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->Count() == 2); // both LINE and CIRCLE, not just the LINE
+}
+
+static void TestMultipleConsecutiveBlankLinesAreSkipped() {
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\n0\n10\n0.0\n20\n0.0\n11\n1.0\n21\n1.0\n"
+        "\n\n\n" // several stray blank lines in a row
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->Count() == 1);
+}
+
+static void TestTrailingBlankLinesAfterEofMarkerDoNotError() {
+    // Some editors append trailing blank lines at the very end of a
+    // file. Must still resolve to a clean end-of-stream, not an error.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\n0\n10\n0.0\n20\n0.0\n11\n1.0\n21\n1.0\n"
+        "0\nENDSEC\n0\nEOF\n\n\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->Count() == 1);
+}
+
+// --- Strict numeric parsing (DXF-ROBUST-002) --------------------------
+//
+// A numeric group-code value with trailing garbage (e.g. a corrupted
+// or accidentally-concatenated field) must be rejected the same way a
+// value that doesn't parse at all is rejected -- not silently accepted
+// up to the first unparseable character. See docs/DXF_BACKLOG.md.
+
+static void TestRequiredFieldWithTrailingGarbageIsRejected() {
+    // CIRCLE radius "5.0abc" must NOT be silently accepted as 5.0.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nCIRCLE\n8\n0\n10\n0.0\n20\n0.0\n40\n5.0abc\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(!result.has_value());
+}
+
+static void TestLineCoordinateWithTrailingGarbageIsRejected() {
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\n0\n10\n1.0x\n20\n0.0\n11\n2.0\n21\n0.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(!result.has_value());
+}
+
+static void TestGroupCodeWithTrailingGarbageIsRejected() {
+    // "10x" instead of "10" as a group code line: a group code is
+    // never legitimately anything but a bare integer.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\n0\n10x\n1.0\n20\n0.0\n11\n2.0\n21\n0.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(!result.has_value());
+}
+
+static void TestLwPolylineVertexCoordinateWithTrailingGarbageIsRejected() {
+    // Unlike bulge (below), a malformed X/Y is severe enough that the
+    // whole LWPOLYLINE entity is skipped -- consistent with existing
+    // DXF-002 behavior for missing/unparseable X or Y.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLWPOLYLINE\n8\n0\n90\n2\n70\n0\n"
+        "10\n0.0garbage\n20\n0.0\n"
+        "10\n2.0\n20\n0.0\n"
+        "0\nLINE\n8\n0\n10\n0.0\n20\n0.0\n11\n1.0\n21\n1.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->Count() == 1); // only the LINE; the malformed LWPOLYLINE is skipped
+}
+
+static void TestLwPolylineBulgeWithTrailingGarbageFallsBackToStraight() {
+    // Bulge keeps its existing lenient treatment: malformed (including
+    // trailing garbage) falls back to 0 -- a straight segment -- rather
+    // than discarding the whole entity, same as an unparseable bulge
+    // was already handled before this fix.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLWPOLYLINE\n8\n0\n90\n2\n70\n0\n"
+        "10\n0.0\n20\n0.0\n42\n1.0garbage\n"
+        "10\n2.0\n20\n0.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->Count() == 1);
+    OH_CHECK(std::holds_alternative<geometry::Line2d>(result->Entities()[0].shape));
+}
+
+static void TestLegitimateSignedAndScientificNotationStillParse() {
+    // Make sure strict parsing doesn't over-reject valid DXF numeric
+    // syntax: leading '+', scientific notation.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nCIRCLE\n8\n0\n10\n+1.5e2\n20\n0.0\n40\n2.5\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    const auto* circle = std::get_if<geometry::Circle2d>(&result->Entities()[0].shape);
+    OH_CHECK(circle != nullptr);
+    OH_CHECK(NearlyEqual(circle->center.x, 150.0));
+}
+
+// --- Malformed/truncated vs. clean EOF (DXF-ROBUST-003a) --------------
+//
+// Tokenizer::Good() previously could never actually distinguish "the
+// stream cleanly ended" from "tokenization stopped because something
+// was wrong" (both left the underlying stream's eofbit set the same
+// way). These tests lock in that the distinction is now real: a
+// failure caused by malformed/truncated data gets a message that says
+// so, while a file that tokenizes completely cleanly and simply never
+// closes its ENTITIES section keeps the original, more specific
+// message -- proving the two code paths are genuinely different, not
+// just checking has_value() either way (which wouldn't catch a
+// regression back to the old behavior).
+
+static void TestMalformedGroupCodeMidEntitiesReportsUnexpectedEnd() {
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\n0\n10\n0.0\n20\n0.0\n11\n1.0\n21\n1.0\n"
+        "AB\ngarbage\n" // malformed group code line, not a bare integer
+        "0\nCIRCLE\n8\n0\n10\n5.0\n20\n5.0\n40\n2.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(!result.has_value());
+    OH_CHECK(result.error().find("unexpectedly") != foundation::string::npos);
+}
+
+static void TestTruncatedMidPairReportsUnexpectedEnd() {
+    // File ends right after a code line, before its value line arrives.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\n0\n10\n0.0\n20\n0.0\n11\n1.0\n21\n1.0\n"
+        "0\nCIRCLE\n8\n0\n10");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(!result.has_value());
+    OH_CHECK(result.error().find("unexpectedly") != foundation::string::npos);
+}
+
+static void TestCleanlyMissingEndsecKeepsOriginalMessage() {
+    // No corruption anywhere -- the file just never closes its
+    // ENTITIES section. Tokenization itself was clean, so this must
+    // keep the ORIGINAL "missing ENDSEC" message, not the
+    // malformed/truncated one -- this is what actually proves Good()
+    // now tells the two cases apart instead of always agreeing.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\n0\n10\n0.0\n20\n0.0\n11\n1.0\n21\n1.0\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(!result.has_value());
+    OH_CHECK(result.error().find("unexpectedly") == foundation::string::npos);
+    OH_CHECK(result.error().find("ENDSEC") != foundation::string::npos);
+}
+
+static void TestMalformedTokenInLaterIgnoredSectionDoesNotFailParse() {
+    // Corruption in a section this Spiral doesn't import from (OBJECTS)
+    // must NOT fail the parse, as long as it comes after ENTITIES's own
+    // ENDSEC was already found -- consistent with "everything outside
+    // ENTITIES is ignored". This is the regression this fix must NOT
+    // introduce: being stricter about ENTITIES-section corruption must
+    // not make the parser less tolerant of irrelevant sections.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\n0\n10\n0.0\n20\n0.0\n11\n1.0\n21\n1.0\n"
+        "0\nENDSEC\n"
+        "0\nSECTION\n2\nOBJECTS\n"
+        "AB\ngarbage\n" // malformed, but irrelevant to ENTITIES
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->Count() == 1);
+}
+
 // --- LWPOLYLINE (DXF-002) --------------------------------------------
 
 static void TestLwPolylineClosedRectangleProducesFourLines() {
@@ -257,6 +454,153 @@ static void TestLwPolylineWithoutClosedFlagDefaultsToOpen() {
     OH_CHECK(result->Count() == 1); // 2 vertices, open -> exactly 1 segment
 }
 
+// --- TABLES/LAYER import (DXF-LAYER-PROPS-001) -------------------------
+
+static void TestLayerColorAndLinetypeImportedFromTablesLayerSection() {
+    std::istringstream dxf(
+        "0\nSECTION\n2\nTABLES\n"
+        "0\nTABLE\n2\nLAYER\n"
+        "0\nLAYER\n2\nWalls\n62\n1\n6\nCONTINUOUS\n"
+        "0\nLAYER\n2\nCenter\n62\n5\n6\nCENTER2\n" // scale-suffixed name
+        "0\nENDTAB\n0\nENDSEC\n"
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\nWalls\n10\n0.0\n20\n0.0\n11\n10.0\n21\n0.0\n"
+        "0\nLINE\n8\nCenter\n10\n0.0\n20\n4.0\n11\n10.0\n21\n4.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+
+    const document::Layer* walls = result->FindLayer("Walls");
+    OH_CHECK(walls != nullptr);
+    OH_CHECK(walls->Color() == "red"); // ACI 1
+    OH_CHECK(walls->GetLineType() == document::LineType::Continuous);
+
+    const document::Layer* center = result->FindLayer("Center");
+    OH_CHECK(center != nullptr);
+    OH_CHECK(center->Color() == "blue"); // ACI 5
+    // "CENTER2" (a scale-suffixed real-world linetype name) must still
+    // map via substring match, not require an exact "CENTER" string.
+    OH_CHECK(center->GetLineType() == document::LineType::DashDot);
+}
+
+static void TestLayerColorNegativeSignTreatedAsOffMagnitudeStillApplies() {
+    // A negative color value on a LAYER record is DXF's "this layer is
+    // off" encoding -- visibility import is out of scope for this
+    // Sprint, but the underlying ACI magnitude must still be read
+    // correctly rather than left unmapped because of the sign.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nTABLES\n"
+        "0\nTABLE\n2\nLAYER\n"
+        "0\nLAYER\n2\nHidden\n62\n-3\n" // -3 -> magnitude 3 -> green
+        "0\nENDTAB\n0\nENDSEC\n"
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nCIRCLE\n8\nHidden\n10\n0.0\n20\n0.0\n40\n5.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    const document::Layer* hidden = result->FindLayer("Hidden");
+    OH_CHECK(hidden != nullptr);
+    OH_CHECK(hidden->Color() == "#00ff00"); // ACI 3 (green)
+}
+
+static void TestNoTablesSectionLeavesLayerAppearanceAtDefaults() {
+    // Backward-compatibility guard: a DXF file with no TABLES section
+    // at all (every DxfReaderTests fixture before this Sprint) must
+    // behave exactly as before -- default appearance, no error.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\nWalls\n10\n0.0\n20\n0.0\n11\n10.0\n21\n0.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    const document::Layer* walls = result->FindLayer("Walls");
+    OH_CHECK(walls != nullptr);
+    OH_CHECK(walls->Color() == "black");
+    OH_CHECK(walls->GetLineType() == document::LineType::Continuous);
+}
+
+static void TestTablesWithoutLayerTableLeavesLayerAppearanceAtDefaults() {
+    // A TABLES section can exist without a LAYER table inside it (e.g.
+    // only LTYPE) -- must still fall through to defaults, not error.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nTABLES\n"
+        "0\nTABLE\n2\nLTYPE\n0\nENDTAB\n"
+        "0\nENDSEC\n"
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\nWalls\n10\n0.0\n20\n0.0\n11\n10.0\n21\n0.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    const document::Layer* walls = result->FindLayer("Walls");
+    OH_CHECK(walls != nullptr);
+    OH_CHECK(walls->Color() == "black");
+}
+
+static void TestUnrecognizedAciAndLinetypeFallBackToDefaultsNotError() {
+    // ACI is a 256-entry palette and DXF linetype names are free-form;
+    // this Sprint's mapping tables deliberately cover only the common
+    // cases (see docs/DXF_BACKLOG.md). Anything outside them must fall
+    // back to the existing defaults, not fail the parse.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nTABLES\n"
+        "0\nTABLE\n2\nLAYER\n"
+        "0\nLAYER\n2\nWeird\n62\n200\n6\nSOME_CUSTOM_LT\n"
+        "0\nENDTAB\n0\nENDSEC\n"
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\nWeird\n10\n0.0\n20\n0.0\n11\n10.0\n21\n0.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    const document::Layer* weird = result->FindLayer("Weird");
+    OH_CHECK(weird != nullptr);
+    OH_CHECK(weird->Color() == "black"); // unrecognized ACI 200 -> default
+    OH_CHECK(weird->GetLineType() == document::LineType::Continuous); // unrecognized name -> default
+}
+
+static void TestLayerTablePropertiesAppliedEvenIfNoEntityUsesThatLayer() {
+    // A LAYER record for a layer name no entity ends up referencing is
+    // harmless -- matches Document::CreateLayer's own get-or-create
+    // idempotence, same as an entity referencing an as-yet-unseen
+    // layer name auto-creates it.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nTABLES\n"
+        "0\nTABLE\n2\nLAYER\n"
+        "0\nLAYER\n2\nUnused\n62\n2\n6\nDASHED\n"
+        "0\nENDTAB\n0\nENDSEC\n"
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\n0\n10\n0.0\n20\n0.0\n11\n10.0\n21\n0.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    const document::Layer* unused = result->FindLayer("Unused");
+    OH_CHECK(unused != nullptr);
+    OH_CHECK(unused->Color() == "yellow"); // ACI 2
+    OH_CHECK(unused->GetLineType() == document::LineType::Dashed);
+}
+
+static void TestUnclosedTablesSectionDoesNotAffectEntitiesImport() {
+    // A TABLES section that never closes (no ENDTAB/ENDSEC) must not
+    // affect ENTITIES parsing at all, and must not mistakenly treat a
+    // LATER, unrelated section's ENDSEC (here, ENTITIES' own) as if it
+    // had closed TABLES -- found and fixed during this Sprint's own
+    // verification, not a hypothetical case.
+    std::istringstream dxf(
+        "0\nSECTION\n2\nTABLES\n"
+        "0\nTABLE\n2\nLAYER\n"
+        "0\nLAYER\n2\nWalls\n62\n1\n"
+        // no ENDTAB, no ENDSEC for TABLES
+        "0\nSECTION\n2\nENTITIES\n"
+        "0\nLINE\n8\nWalls\n10\n0.0\n20\n0.0\n11\n10.0\n21\n0.0\n"
+        "0\nENDSEC\n0\nEOF\n");
+    auto result = dxf::ParseDxfStream(dxf);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->Count() == 1);
+    const document::Layer* walls = result->FindLayer("Walls");
+    OH_CHECK(walls != nullptr);
+    // Malformed TABLES data is NOT applied -- default color, not "red".
+    OH_CHECK(walls->Color() == "black");
+}
+
 int main() {
     TestParseLineEntity();
     TestParseCircleEntity();
@@ -269,6 +613,21 @@ int main() {
     TestEntityWithoutLayerCodeDefaultsToLayerZero();
     TestFileNotFoundIsAnError();
     TestEmptyEntitiesSectionProducesEmptyDocument();
+    TestBlankLineWithinEntitiesSectionIsSkippedNotFatal();
+    TestMultipleConsecutiveBlankLinesAreSkipped();
+    TestTrailingBlankLinesAfterEofMarkerDoNotError();
+
+    TestRequiredFieldWithTrailingGarbageIsRejected();
+    TestLineCoordinateWithTrailingGarbageIsRejected();
+    TestGroupCodeWithTrailingGarbageIsRejected();
+    TestLwPolylineVertexCoordinateWithTrailingGarbageIsRejected();
+    TestLwPolylineBulgeWithTrailingGarbageFallsBackToStraight();
+    TestLegitimateSignedAndScientificNotationStillParse();
+
+    TestMalformedGroupCodeMidEntitiesReportsUnexpectedEnd();
+    TestTruncatedMidPairReportsUnexpectedEnd();
+    TestCleanlyMissingEndsecKeepsOriginalMessage();
+    TestMalformedTokenInLaterIgnoredSectionDoesNotFailParse();
 
     TestLwPolylineClosedRectangleProducesFourLines();
     TestLwPolylineOpenProducesOneFewerSegmentThanVertices();
@@ -276,6 +635,14 @@ int main() {
     TestLwPolylineMixedStraightAndCurvedSegments();
     TestLwPolylineSingleVertexIsSkippedNotFatal();
     TestLwPolylineWithoutClosedFlagDefaultsToOpen();
+
+    TestLayerColorAndLinetypeImportedFromTablesLayerSection();
+    TestLayerColorNegativeSignTreatedAsOffMagnitudeStillApplies();
+    TestNoTablesSectionLeavesLayerAppearanceAtDefaults();
+    TestTablesWithoutLayerTableLeavesLayerAppearanceAtDefaults();
+    TestUnrecognizedAciAndLinetypeFallBackToDefaultsNotError();
+    TestLayerTablePropertiesAppliedEvenIfNoEntityUsesThatLayer();
+    TestUnclosedTablesSectionDoesNotAffectEntitiesImport();
 
     std::puts("DxfReaderTests: all tests passed.");
     return 0;
