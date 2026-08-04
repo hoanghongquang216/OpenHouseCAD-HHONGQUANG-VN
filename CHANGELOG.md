@@ -11,6 +11,169 @@ consumers yet.
 
 Nothing yet.
 
+## [dxf-layer-props-001] - Import layer color and linetype from TABLES/LAYER
+
+Closes the gap found by the DXF-004 appearance audit: `document::Layer`
+color/linetype storage and `RenderToSvg` rendering of both have been
+complete since Spiral 2 (`DOC-003`); only DXF import was missing.
+
+### Added
+- `detail::ApplyLayerTableProperties()` in `DxfReader.hpp`: parses the
+  (optional) `TABLES`/`LAYER` section and applies each record's color
+  (group code `62`, ACI) and linetype (group code `6`, name) to the
+  matching `Document` layer via the existing `Document::CreateLayer` +
+  `Layer::SetColor`/`SetLineType` -- no `Document`/`Layer` API change.
+  Runs as an independent pass after `ENTITIES` is parsed; a missing,
+  malformed, or unclosed `TABLES` section is not an error -- layers
+  simply keep their existing default appearance, same as before this
+  Sprint.
+- `detail::AciToSvgColor()`: maps DXF's ACI (AutoCAD Color Index) 1-9
+  to an SVG color string; anything outside that range is left
+  unmapped (existing default color kept), not guessed at. A layer's
+  color value being negative (DXF's "this layer is off" encoding) is
+  handled by taking the magnitude for the color lookup -- visibility
+  import itself is out of scope (see `DXF-LAYER-PROPS-002` in
+  `docs/DXF_BACKLOG.md`).
+- `detail::LineTypeNameToEnum()`: maps a DXF linetype name (free-form,
+  often with a numeric scale suffix like `"CENTER2"`) onto the
+  existing small `LineType` enum by case-insensitive substring match;
+  unrecognized names default to `Continuous`.
+- `detail::SplitIntoChunks()`: the entity-chunk-splitting loop
+  previously inlined in `ParseDxfStream`'s Pass 2, extracted into a
+  shared helper now also used for `LAYER`-table-record splitting
+  (identical DXF convention -- a bare group code `0` starts a new
+  record -- applied to a second section). No behavior change to the
+  existing `ENTITIES` splitting.
+- 8 regression tests in `DxfReaderTests.cpp`: color+linetype import
+  (including a scale-suffixed linetype name), the negative-color/
+  magnitude case, absent-`TABLES` and `TABLES`-without-`LAYER`-table
+  backward-compatibility guards, unrecognized ACI/linetype falling
+  back to defaults, a `LAYER` record for a layer no entity references,
+  and an unclosed `TABLES` section not leaking into (or being confused
+  with) `ENTITIES`'s own section boundary.
+
+### Fixed (found during this Sprint's own verification, not a
+pre-existing bug report)
+- The `TABLES` section's own closing-boundary search could, for a
+  malformed/never-closing `TABLES` section, mistake a *later* and
+  unrelated section's `ENDSEC` (e.g. `ENTITIES`'s) for `TABLES`'s own.
+  Harmless in practice (only genuine `LAYER`-type chunks are ever
+  applied), but tightened anyway: the search now stops at the next
+  `0/SECTION` it encounters, correctly falling through to "`TABLES`
+  doesn't close" instead.
+
+### Explicitly not done this Sprint (see `docs/DXF_BACKLOG.md`)
+Layer visibility, lineweight (needs a unit-mapping decision --
+`DXF-LAYER-PROPS-002`), entity-level color/linetype override (needs an
+`Entity` data-model change -- `DXF-LAYER-PROPS-003`), BYBLOCK, true
+color, plot style.
+
+## [dxf-robust-003a] - Tokenizer::Good() actually distinguishes clean EOF from malformed/truncated data
+
+Scoped-down first half of DXF-ROBUST-003 (see design discussion):
+internal EOF-vs-truncation distinction only, no public API change, no
+error-code taxonomy, no position/section tracking. The larger
+diagnostics work (line/section-aware messages, a structured
+`DxfErrorCode`) is deferred to `DXF-ROBUST-003b` in
+`docs/DXF_BACKLOG.md`, pending a concrete consumer that needs it.
+
+### Fixed
+- `Tokenizer::Good()` was implemented as `in_->eof() || in_->good()`,
+  which is `true` after *both* a clean end-of-stream and a truncated
+  mid-pair failure (a failed `getline()` sets `eofbit` either way) --
+  so it could never actually tell the two apart, contradicting its own
+  declaration comment. `Tokenizer` now tracks a small internal flag
+  set the moment `Next()` hits a real problem (a code line with no
+  following value line, or a malformed group code that isn't a bare
+  integer) -- left untouched on a genuine clean end-of-stream.
+- `ParseDxfStream` now consults this to pick a more accurate message
+  when it can't find what it needs: "DXF stream ended unexpectedly
+  (malformed group code or truncated data) ..." when tokenization
+  itself broke down, vs. the original "No ENTITIES section found" /
+  "ENTITIES section is missing its closing '0/ENDSEC'" when
+  tokenization completed cleanly and the file is just genuinely
+  missing what it claims to have. Malformed/truncated data in a
+  section other than ENTITIES (encountered *after* ENTITIES's own
+  ENDSEC was already captured) still does not fail the parse --
+  unchanged, consistent with this Spiral's documented scope of
+  ignoring everything outside ENTITIES.
+
+### Added
+- 4 regression tests in `DxfReaderTests.cpp`: a malformed group code
+  mid-ENTITIES, a genuinely truncated mid-pair file, a cleanly-
+  tokenized-but-missing-ENDSEC file (confirms the *original* message
+  is kept when nothing is actually malformed -- the case that proves
+  the distinction is real), and malformed data in a later, ignored
+  section not failing the parse (guards against the leniency
+  regression this fix could have introduced if scoped carelessly).
+
+## [dxf-robust-002] - Strict numeric parsing in DxfReader
+
+### Fixed
+- `detail::FindDouble()`, the group-code integer parse in
+  `Tokenizer::Next()`, and the X/Y/bulge parsing in
+  `detail::ExtractLwPolylineVertices()` all previously accepted a
+  numeric field with trailing garbage (e.g. `"5.0abc"`) by silently
+  truncate-accepting up to the first unparseable character
+  (`std::stod`/`std::stoi` only checked that *something* was parsed,
+  not that the *whole* trimmed value was consumed). A corrupted or
+  accidentally-concatenated numeric field would import as a
+  plausible-looking but wrong number instead of failing the parse.
+  Now rejected the same way an unparseable value already was: a
+  required field with trailing garbage fails the entity (LINE/CIRCLE/
+  ARC) or is skipped (LWPOLYLINE X/Y, consistent with existing
+  DXF-002 per-entity-skip behavior); a malformed *bulge* specifically
+  keeps its existing lenient fallback to a straight segment, now
+  including the trailing-garbage case.
+- Added `detail::ParseStrictDouble()` -- a single shared helper for
+  the ≥3 existing call sites that all needed this same "must consume
+  the entire string" check (`FindDouble`, and the X/Y/bulge parses in
+  `ExtractLwPolylineVertices`), rather than repeating the check three
+  times. Not a new architectural layer -- see `docs/AI-Working-
+  Agreement.md` rule 3, whose own bar ("at least one concrete,
+  currently-existing use case") this clears with room to spare.
+
+### Added
+- 6 regression tests in `DxfReaderTests.cpp` covering: a required
+  field (LINE coordinate, CIRCLE radius) with trailing garbage being
+  rejected; a group-code line with trailing garbage being rejected; an
+  LWPOLYLINE vertex X/Y with trailing garbage skipping the entity
+  (not the whole file); a malformed bulge still falling back to a
+  straight segment; and legitimate signed/scientific-notation values
+  (`"+1.5e2"`) still parsing correctly (guards against over-rejection).
+
+Was `DXF-ROBUST-002` in `docs/DXF_BACKLOG.md`; entry removed from the
+backlog now that it's shipped (see that file's own convention on
+where deferred-vs-shipped items live).
+
+## [dxf-003] - Tokenizer: don't let a blank line silently truncate the file
+
+### Fixed
+- `Tokenizer::Next()` treated any blank (or whitespace-only) code line
+  as end-of-stream. A group code is never legitimately blank, but a
+  stray blank line is something real-world DXF files can pick up
+  (line-ending conversion, manual edits, some non-CAD export paths).
+  Depending on where in the file it landed, this produced either a
+  misleading `"ENTITIES section is missing its closing '0/ENDSEC'"`
+  error on an otherwise well-formed file, or -- worse -- a
+  successful-looking parse that had silently dropped entities after
+  the blank line. `Next()` now skips blank code lines and keeps
+  reading; only a genuine `getline()` failure (true end-of-stream) is
+  treated as end-of-stream.
+
+### Added
+- 3 regression tests in `DxfReaderTests.cpp`: a blank line between two
+  entities (both must still import), several consecutive blank lines,
+  and trailing blank lines after the file's own `EOF` marker (must
+  still resolve cleanly, no false regression from the fix).
+
+### Also
+- Logged two related-but-out-of-scope findings from the same audit to
+  `docs/DXF_BACKLOG.md` rather than bundling them into this patch:
+  `DXF-ROBUST-002` (shipped above) and `DXF-ROBUST-003` (numeric
+  trailing-garbage acceptance, and `Tokenizer::Good()`'s EOF-vs-
+  truncation contract not actually holding as implemented).
+
 ## [svg-pipeline] - DXF → Document → SVG integration tests
 
 ### Added
