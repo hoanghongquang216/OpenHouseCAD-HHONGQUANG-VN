@@ -133,3 +133,20 @@ add_test(
     NAME OpenHouseCommandHistoryTests
     COMMAND OpenHouseCommandHistoryTests
 )
+
+add_executable(OpenHouseSnapTests
+    SnapTests.cpp
+)
+
+target_link_libraries(OpenHouseSnapTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+
+openhouse_enable_warnings(OpenHouseSnapTests)
+
+add_test(
+    NAME OpenHouseSnapTests
+    COMMAND OpenHouseSnapTests
+)

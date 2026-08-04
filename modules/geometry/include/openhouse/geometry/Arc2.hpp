@@ -61,6 +61,17 @@ template<foundation::FloatingPoint T>
     return PointAt(arc, arc.endAngle);
 }
 
+// The point at the arc's angular midpoint -- halfway between
+// startAngle and endAngle along the sweep direction, matching how a
+// CAD tool's Midpoint snap treats an arc (see SNAP-CORE-001). This is
+// NOT the midpoint of the chord between StartPoint/EndPoint (that
+// would cut inside the arc for anything but a semicircle) -- it's the
+// point actually ON the arc, halfway along its curved length.
+template<foundation::FloatingPoint T>
+[[nodiscard]] Point2<T> Midpoint(const Arc2<T>& arc) noexcept {
+    return PointAt(arc, arc.startAngle + Sweep(arc) / T{2});
+}
+
 // Arc length = radius * |sweep angle|. Uses the absolute value of Sweep
 // so length is always non-negative regardless of sweep direction.
 template<foundation::FloatingPoint T>
