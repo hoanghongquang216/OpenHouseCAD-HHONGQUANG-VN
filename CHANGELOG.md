@@ -11,6 +11,32 @@ consumers yet.
 
 Nothing yet.
 
+## [svg-pipeline] - DXF → Document → SVG integration tests
+
+### Added
+- `modules/dxf/tests/SvgPipelineIntegrationTests.cpp` -- 10 test cases
+  proving the DXF -> Document -> SVG pipeline composes end to end
+  through a real `Document`, not just that each stage passes its own
+  unit tests in isolation (`DxfReaderTests.cpp` for DXF -> Document,
+  `RenderDocumentTests.cpp` for Document -> SVG). Covers LINE/CIRCLE/
+  ARC/LWPOLYLINE-with-bulge rendering, an unsupported entity (TEXT)
+  being skipped end to end, an empty DXF producing an empty SVG shell,
+  a malformed DXF stopping before any render is attempted, post-import
+  layer styling (color/visibility) applied correctly, and a
+  multi-layer floor-plan-shaped scenario combining all of the above.
+
+### Changed (design)
+- The originally proposed approach (a `tests/data/dxf/` fixture
+  directory of ~16 hand-written `.dxf` files, a matching
+  `tests/expected/svg/` directory of golden `.svg` files compared
+  byte-for-byte, and GoogleTest) was revised during implementation
+  review. Review against the existing codebase found it duplicated
+  coverage already present in `DxfReaderTests.cpp` (inline DXF via
+  `std::istringstream`) and introduced a golden-file comparison
+  pattern with no precedent anywhere in the project, which itself uses
+  `OH_CHECK` + plain `main()`, not GoogleTest. See Principle 16 in
+  `docs/ENGINEERING_PRINCIPLES.md`.
+
 ## [dxf-002] - LWPOLYLINE support
 
 Extends the existing `DxfReader.hpp` (no new file, no new class --

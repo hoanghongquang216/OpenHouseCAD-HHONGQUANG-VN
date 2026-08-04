@@ -21,3 +21,17 @@ Every technical decision must optimize the long-term health of the project rathe
 13. `Document` is the canonical model. Every importer converts an external format into a `Document`; every exporter converts a `Document` into an external format. Importers and exporters never communicate directly with each other. See `modules/dxf/include/openhouse/dxf/DxfReader.hpp` for the current (import-only) reference implementation.
 14. Text-based parsers tokenize, then group, then build -- directly into `Document`, with no separate reusable "parser framework" layer unless a second format actually needs one (see Principle on abstraction in `docs/AI-Working-Agreement.md`). The DXF reader's actual structure (`Tokenizer` -> `EntityChunk` -> `Document`) is the reference shape for any future importer, not a speculative generalization of it.
 15. Geometry algorithms are verified numerically, not just reasoned about, before they're integrated into a parser or transform. See `docs/AI-Working-Agreement.md` (rule 2) for the specific incidents that established this and the verification pattern to follow (independently reconstruct expected values, check against randomized cases, not just one hand-picked example).
+16. Codebase convention outranks a ticket's original design. When a ticket's
+    planned approach conflicts with convention already established and
+    proven elsewhere in the codebase, the default is to adapt the design to
+    fit the codebase -- not the other way around -- unless the new pattern
+    has a concrete, demonstrated benefit the existing convention lacks. See
+    `svg-pipeline` (CHANGELOG.md): the originally proposed approach
+    (per-format fixture files on disk, a golden-file comparison pattern,
+    GoogleTest) was revised during implementation review to
+    `modules/dxf/tests/SvgPipelineIntegrationTests.cpp` -- inline DXF text
+    via `std::istringstream` and `OH_CHECK`/`main()`, matching
+    `DxfReaderTests.cpp` and `RenderDocumentTests.cpp` exactly -- after
+    review found the original design duplicated existing unit-test
+    coverage and introduced a comparison pattern with no precedent
+    anywhere else in the project.
