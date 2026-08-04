@@ -51,12 +51,24 @@ jobs:
         run: |
           echo "CC=gcc-13" >> "$GITHUB_ENV"
           echo "CXX=g++-13" >> "$GITHUB_ENV"
+          echo "EXTRA_CMAKE_ARGS=" >> "$GITHUB_ENV"
 
+      # gcc-13's libstdc++ builds std::expected fine when compiled by GCC
+      # itself (see build-and-test gcc legs, which pass), but Clang-18
+      # against that same libstdc++ fails with "no member named 'expected'
+      # in namespace std" -- libstdc++'s <expected> gates its contents on
+      # feature-test macros that Clang-18 doesn't satisfy the same way GCC
+      # does. This is a known Clang+libstdc++ gap, not a project bug.
+      # Fix: build the clang leg against libc++ instead, which has shipped
+      # a complete std::expected since LLVM 16.
       - name: Select compiler (Clang)
         if: matrix.compiler == 'clang'
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libc++-18-dev libc++abi-18-dev
           echo "CC=clang-18" >> "$GITHUB_ENV"
           echo "CXX=clang++-18" >> "$GITHUB_ENV"
+          echo "EXTRA_CMAKE_ARGS=-DCMAKE_CXX_FLAGS=-stdlib=libc++ -DCMAKE_EXE_LINKER_FLAGS=-stdlib=libc++" >> "$GITHUB_ENV"
 
       - name: Ensure CMake >= 3.25
         uses: lukka/get-cmake@latest
@@ -69,6 +81,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DOPENHOUSE_WARNINGS_AS_ERRORS=ON
           -DBUILD_TESTING=ON
+          ${EXTRA_CMAKE_ARGS}
 
       - name: Build
         run: cmake --build build --parallel
