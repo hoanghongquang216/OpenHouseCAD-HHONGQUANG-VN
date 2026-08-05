@@ -58,4 +58,24 @@ namespace openhouse::document {
     return trimmed;
 }
 
+// Mutating counterpart to ComputeTrim -- same TranslateEntity/
+// RotateEntity/ScaleEntity split (Transform.hpp): applies the computed
+// result directly to `doc`. Used by TrimCommand (via
+// EntityShapeCommandBase, REFACTOR-001) instead of duplicating the
+// find-entity-and-assign-shape logic that ComputeTrim's callers would
+// otherwise each have to repeat.
+[[nodiscard]] inline bool TrimEntity(Document& doc, EntityId targetId, EntityId cutterId,
+                                      geometry::Point2d clickPoint) {
+    const auto trimmed = ComputeTrim(doc, targetId, cutterId, clickPoint);
+    if (!trimmed.has_value()) {
+        return false;
+    }
+    Entity* entity = doc.FindEntityMutable(targetId);
+    if (entity == nullptr) {
+        return false;
+    }
+    entity->shape = *trimmed;
+    return true;
+}
+
 }
