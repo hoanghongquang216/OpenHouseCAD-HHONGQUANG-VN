@@ -20,7 +20,7 @@ static void TestSnapFindsLineEndpoint() {
 
     const auto result = FindSnapPoint(doc, Point2d{0.05, 0.0}, 0.5);
     OH_CHECK(result.has_value());
-    OH_CHECK(result->id == id);
+    OH_CHECK(result->entityId == id);
     OH_CHECK(result->type == SnapType::Endpoint);
     OH_CHECK(NearlyEqual(result->point.x, 0.0));
     OH_CHECK(NearlyEqual(result->point.y, 0.0));
@@ -34,7 +34,7 @@ static void TestSnapFindsLineMidpoint() {
     // that only the midpoint candidate is within tolerance.
     const auto result = FindSnapPoint(doc, Point2d{5.05, 0.0}, 0.5);
     OH_CHECK(result.has_value());
-    OH_CHECK(result->id == id);
+    OH_CHECK(result->entityId == id);
     OH_CHECK(result->type == SnapType::Midpoint);
     OH_CHECK(NearlyEqual(result->point.x, 5.0));
 }
@@ -45,7 +45,7 @@ static void TestSnapFindsCircleCenter() {
 
     const auto result = FindSnapPoint(doc, Point2d{3.05, 4.0}, 0.5);
     OH_CHECK(result.has_value());
-    OH_CHECK(result->id == id);
+    OH_CHECK(result->entityId == id);
     OH_CHECK(result->type == SnapType::Center);
     OH_CHECK(NearlyEqual(result->point.x, 3.0));
     OH_CHECK(NearlyEqual(result->point.y, 4.0));
@@ -59,7 +59,7 @@ static void TestSnapFindsArcEndpointsMidpointAndCenter() {
 
     const auto startResult = FindSnapPoint(doc, Point2d{10.05, 0.0}, 0.5);
     OH_CHECK(startResult.has_value());
-    OH_CHECK(startResult->id == id);
+    OH_CHECK(startResult->entityId == id);
     OH_CHECK(startResult->type == SnapType::Endpoint);
 
     const auto endResult = FindSnapPoint(doc, Point2d{0.0, 10.05}, 0.5);
@@ -84,7 +84,7 @@ static void TestSnapReturnsClosestCandidateAmongMultipleOnSameEntity() {
 
     const auto result = FindSnapPoint(doc, Point2d{9.9, 0.0}, 5.0);
     OH_CHECK(result.has_value());
-    OH_CHECK(result->id == id);
+    OH_CHECK(result->entityId == id);
     OH_CHECK(result->type == SnapType::Endpoint);
     OH_CHECK(NearlyEqual(result->point.x, 10.0));
 }
@@ -98,7 +98,7 @@ static void TestSnapReturnsClosestCandidateAcrossDifferentEntities() {
     // Circle's center at the origin.
     const auto result = FindSnapPoint(doc, Point2d{1.1, 1.1}, 5.0);
     OH_CHECK(result.has_value());
-    OH_CHECK(result->id == closer);
+    OH_CHECK(result->entityId == closer);
     OH_CHECK(result->type == SnapType::Endpoint);
 }
 
@@ -134,7 +134,7 @@ static void TestSnapDoesNOTSkipLockedLayer() {
 
     const auto result = FindSnapPoint(doc, Point2d{0.05, 0.0}, 0.5);
     OH_CHECK(result.has_value());
-    OH_CHECK(result->id == id);
+    OH_CHECK(result->entityId == id);
 }
 
 static void TestSnapFindsArcCenterFarOutsideArcsOwnBoundingBox() {
@@ -155,7 +155,7 @@ static void TestSnapFindsArcCenterFarOutsideArcsOwnBoundingBox() {
 
     const auto result = FindSnapPoint(doc, Point2d{0.0, 0.0}, 1.0);
     OH_CHECK(result.has_value());
-    OH_CHECK(result->id == id);
+    OH_CHECK(result->entityId == id);
     OH_CHECK(result->type == SnapType::Center);
     OH_CHECK(NearlyEqual(result->distance, 0.0));
 }
@@ -166,10 +166,108 @@ static void TestSnapWithZeroToleranceRequiresExactMatch() {
 
     const auto exact = FindSnapPoint(doc, Point2d{0.0, 0.0}, 0.0);
     OH_CHECK(exact.has_value());
-    OH_CHECK(exact->id == id);
+    OH_CHECK(exact->entityId == id);
 
     const auto near = FindSnapPoint(doc, Point2d{0.0001, 0.0}, 0.0);
     OH_CHECK(!near.has_value());
+}
+
+// --- SNAP-INTERSECTION-001: Intersection candidates -----------------
+
+namespace {
+// The pair loop in FindSnapPoint() checks unordered pairs (i < j), so
+// which of the two entities ends up as `entityId` vs. `relatedEntityId`
+// is an implementation detail of iteration order, not part of the
+// contract -- SnapResult's own comment says the two are symmetric for
+// Intersection. Tests check unordered membership, not a specific
+// order, so they don't couple to that detail.
+bool IsPair(const std::optional<EntityId>& related, EntityId entityId, EntityId a, EntityId b) {
+    if (!related.has_value()) {
+        return false;
+    }
+    return (entityId == a && *related == b) || (entityId == b && *related == a);
+}
+} // namespace
+
+static void TestSnapFindsLineLineIntersection() {
+    Document doc;
+    // Deliberately asymmetric lengths/positions so the crossing point
+    // does NOT coincide with either line's own Midpoint candidate --
+    // if it did, the single-entity Midpoint (checked in the first
+    // pass) would tie on distance with the Intersection candidate
+    // (checked in the second pass) and win by being checked first,
+    // masking whether Intersection detection works at all.
+    const EntityId a = doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{20.0, 0.0}}); // midpoint (10,0)
+    const EntityId b = doc.Add(Line2d{Point2d{5.0, -5.0}, Point2d{5.0, 8.0}}); // midpoint (5,1.5)
+    // Crosses at (5,0) -- 5 away from A's midpoint, 1.5 away from B's.
+
+    const auto result = FindSnapPoint(doc, Point2d{5.05, 0.0}, 0.5);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->type == SnapType::Intersection);
+    OH_CHECK(IsPair(result->relatedEntityId, result->entityId, a, b));
+    OH_CHECK(NearlyEqual(result->point.x, 5.0));
+    OH_CHECK(NearlyEqual(result->point.y, 0.0));
+}
+
+static void TestSnapFindsLineCircleIntersection() {
+    Document doc;
+    const EntityId line = doc.Add(Line2d{Point2d{-10.0, 0.0}, Point2d{10.0, 0.0}});
+    const EntityId circle = doc.Add(Circle2d{Point2d{0.0, 0.0}, 5.0});
+
+    // Secant line crosses the circle at (-5,0) and (5,0); query near
+    // (5,0), far from every Endpoint/Midpoint/Center candidate.
+    const auto result = FindSnapPoint(doc, Point2d{5.05, 0.0}, 0.4);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->type == SnapType::Intersection);
+    OH_CHECK(IsPair(result->relatedEntityId, result->entityId, line, circle));
+    OH_CHECK(NearlyEqual(result->point.x, 5.0));
+}
+
+static void TestSnapNoIntersectionCandidateWhenLinesDontCross() {
+    Document doc;
+    doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{10.0, 0.0}});
+    doc.Add(Line2d{Point2d{0.0, 5.0}, Point2d{10.0, 5.0}}); // parallel, never crosses
+
+    // Query point far from both lines' endpoints/midpoints too, so a
+    // nullopt here specifically rules out a spurious Intersection.
+    const auto result = FindSnapPoint(doc, Point2d{5.0, 2.5}, 0.5);
+    OH_CHECK(!result.has_value());
+}
+
+static void TestSnapIntersectionSkippedWhenEitherEntityOnHiddenLayer() {
+    Document doc;
+    doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{20.0, 0.0}});
+    doc.Add(Line2d{Point2d{5.0, -5.0}, Point2d{5.0, 8.0}}, "Hidden");
+    doc.FindLayer("Hidden")->SetVisible(false);
+
+    const auto result = FindSnapPoint(doc, Point2d{5.05, 0.0}, 0.5);
+    OH_CHECK(!result.has_value());
+}
+
+static void TestSnapNonIntersectionResultsHaveNulloptRelatedEntityId() {
+    Document doc;
+    doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{10.0, 0.0}});
+
+    const auto result = FindSnapPoint(doc, Point2d{0.05, 0.0}, 0.5);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->type == SnapType::Endpoint);
+    OH_CHECK(!result->relatedEntityId.has_value());
+}
+
+static void TestSnapPrefersCloserCandidateBetweenEndpointAndIntersection() {
+    // Two crossing lines: query point is close to one line's own
+    // endpoint (0,0) AND reasonably near the crossing at (5,5) -- with
+    // a wide tolerance, the nearer one (the endpoint) must win, proving
+    // Intersection candidates compete on distance like every other kind
+    // rather than being preferred or checked separately.
+    Document doc;
+    const EntityId a = doc.Add(Line2d{Point2d{0.0, 0.0}, Point2d{10.0, 10.0}});
+    doc.Add(Line2d{Point2d{0.0, 10.0}, Point2d{10.0, 0.0}});
+
+    const auto result = FindSnapPoint(doc, Point2d{0.1, 0.1}, 20.0);
+    OH_CHECK(result.has_value());
+    OH_CHECK(result->type == SnapType::Endpoint);
+    OH_CHECK(result->entityId == a);
 }
 
 int main() {
@@ -185,6 +283,13 @@ int main() {
     TestSnapDoesNOTSkipLockedLayer();
     TestSnapFindsArcCenterFarOutsideArcsOwnBoundingBox();
     TestSnapWithZeroToleranceRequiresExactMatch();
+
+    TestSnapFindsLineLineIntersection();
+    TestSnapFindsLineCircleIntersection();
+    TestSnapNoIntersectionCandidateWhenLinesDontCross();
+    TestSnapIntersectionSkippedWhenEitherEntityOnHiddenLayer();
+    TestSnapNonIntersectionResultsHaveNulloptRelatedEntityId();
+    TestSnapPrefersCloserCandidateBetweenEndpointAndIntersection();
 
     std::puts("SnapTests: all tests passed.");
     return 0;
