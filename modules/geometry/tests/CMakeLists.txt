@@ -133,3 +133,20 @@ add_test(
     NAME OpenHouseTransformTests
     COMMAND OpenHouseTransformTests
 )
+
+add_executable(OpenHouseIntersectionTests
+    IntersectionTests.cpp
+)
+
+target_link_libraries(OpenHouseIntersectionTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Geometry
+)
+
+openhouse_enable_warnings(OpenHouseIntersectionTests)
+
+add_test(
+    NAME OpenHouseIntersectionTests
+    COMMAND OpenHouseIntersectionTests
+)

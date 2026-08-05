@@ -27,44 +27,40 @@ is only for things NOT yet implemented.
 
 **Priority:** Medium
 
-**Status:** Deferred -- separate Sprint by design, needs its own
-audit/probe before implementation
+**Depends on:** `GEOM-INTERSECTION-001` (see `docs/GEOM_BACKLOG.md`).
+
+**Status:** Blocked by Geometry primitive -- not started until
+`GEOM-INTERSECTION-001` merges.
 
 **Current behaviour:** `document::FindSnapPoint()` (`Snap.hpp`)
 recognizes only `Endpoint`, `Midpoint`, and `Center` -- see
-SNAP-CORE-001 in `CHANGELOG.md`. No intersection-point computation
-exists anywhere in the codebase: `geometry::BoundingBox2::Intersects()`
-only tests whether two bounding boxes overlap (a `bool`), not the
-actual `(x, y)` point(s) where two curves cross, which is what an
-Intersection snap needs.
+SNAP-CORE-001 in `CHANGELOG.md`.
 
-**Proposed behaviour:** For each pair of nearby entities, compute their
-actual geometric intersection point(s) and offer them as `Intersection`
--typed `SnapCandidate`s, same mechanism as the three kinds already
-shipped. Needs up to 6 distinct geometric formulas (`Line-Line`,
-`Line-Circle`, `Line-Arc`, `Circle-Circle`, `Circle-Arc`, `Arc-Arc`),
-each with its own edge cases (0/1/2 solutions, tangency, coincident
-circles, etc.) -- see the Snap audit (message history / any saved copy
-of "Audit: Snap (Spiral 6)") for the full breakdown per pair.
+**Proposed behaviour:** For each pair of nearby entities, call
+`geometry::Intersect(...)` (per `GEOM-INTERSECTION-001`) and offer
+qualifying results as `Intersection`-typed `SnapCandidate`s, same
+mechanism as the three kinds already shipped. Per
+`docs/ARCHITECTURE_DECISION_RECORDS/ADR-0006-geometry-document-application-layering.md`,
+this Sprint does **not** implement any geometric formula itself -- the
+Line-Line/Line-Circle/Circle-Circle math and the Arc filtering via
+`AngleOnArc` all live in `geometry`, per `GEOM-INTERSECTION-001`. This
+Sprint's own scope is Document-layer composition only: which entity
+pairs to check (nearby, per the existing per-entity iteration
+`FindSnapPoint` already does), calling the Geometry Kernel primitive,
+and wrapping results as `SnapCandidate`.
 
 **Reason for deferring, not bundling into SNAP-CORE-001:** Endpoint/
 Midpoint/Center are all "extract an already-known point from one
 shape" -- geometrically trivial, almost entirely already available
 from existing primitives (`Line2::Midpoint`, `Arc2::StartPoint`/
-`EndPoint`/`Midpoint`, `.center`). Intersection is a categorically
-different kind of problem -- computing a NEW point that exists only in
-the relationship between TWO shapes -- with meaningfully higher formula
-risk. Per `docs/AI-Working-Agreement.md` Principle 2 (independent
-verification for error-prone formulas -- the precedent being
-`BulgeToArc` in DXF-002, checked against 20+ randomized cases before
-integration), each of the up-to-6 intersection formulas here deserves
-that same treatment individually, which is a substantially larger and
-differently-shaped Sprint than SNAP-CORE-001 was.
+`EndPoint`/`Midpoint`, `.center`). Intersection needs a genuinely new
+geometric capability (`GEOM-INTERSECTION-001`), which is why it was
+split out as its own Geometry Kernel Sprint rather than Document-layer
+work -- see ADR-0006 for the full reasoning (Editing's Trim/Extend/
+Fillet need the same primitives, so they belong below Snap, not inside
+it).
 
-**Trigger to revisit:** Whenever CAD-core Snap work resumes after
-SNAP-CORE-001 -- this is understood to be next in line for that track,
-not waiting on an external consumer the way e.g. `DXF-ROBUST-003b` is.
-Before implementation starts, this Sprint should get its own audit/
-probe phase (mirroring how SNAP-CORE-001 itself was scoped) to work
-out each formula's approach and edge cases before writing code, per
-the pattern that has worked for every Sprint so far.
+**Trigger to revisit:** `GEOM-INTERSECTION-001` merging. At that point
+this Sprint should be small -- most of the formula risk this entry
+originally worried about now lives (and is tested) in
+`GEOM-INTERSECTION-001` instead.
