@@ -150,3 +150,16 @@ add_test(
     NAME OpenHouseIntersectionTests
     COMMAND OpenHouseIntersectionTests
 )
+add_executable(OpenHouseProjectionTests
+    ProjectionTests.cpp
+)
+target_link_libraries(OpenHouseProjectionTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Geometry
+)
+openhouse_enable_warnings(OpenHouseProjectionTests)
+add_test(
+    NAME OpenHouseProjectionTests
+    COMMAND OpenHouseProjectionTests
+)
