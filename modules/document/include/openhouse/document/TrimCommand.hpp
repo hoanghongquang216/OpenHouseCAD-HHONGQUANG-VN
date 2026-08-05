@@ -5,48 +5,24 @@
 
 namespace openhouse::document {
 
-// TRIM-001's own ICommand -- deliberately independent of
-// TransformEntityCommandBase (Command.hpp), per the TRIM-001 audit's
-// Go decision: no evidence yet that Trim and Translate/Rotate/Scale
-// share enough Memento logic to justify a common base.
-class TrimCommand final : public ICommand {
+// TRIM-001's ICommand -- REFACTOR-001: shares EntityShapeCommandBase's
+// Memento logic (Command.hpp) with TranslateCommand/RotateCommand/
+// ScaleCommand and ExtendCommand, instead of duplicating it. Only
+// supplies the operation-specific inputs (cutterId_, clickPoint_) and
+// the DoOperation hook.
+class TrimCommand final : public EntityShapeCommandBase {
 public:
     TrimCommand(EntityId targetId, EntityId cutterId, geometry::Point2d clickPoint) noexcept
-        : targetId_(targetId), cutterId_(cutterId), clickPoint_(clickPoint) {}
+        : EntityShapeCommandBase(targetId), cutterId_(cutterId), clickPoint_(clickPoint) {}
 
-    [[nodiscard]] bool Execute(Document& doc) override {
-        const auto trimmed = ComputeTrim(doc, targetId_, cutterId_, clickPoint_);
-        if (!trimmed.has_value()) {
-            return false;
-        }
-        Entity* entity = doc.FindEntityMutable(targetId_);
-        if (entity == nullptr) {
-            return false;
-        }
-        shapeBefore_ = entity->shape;
-        entity->shape = *trimmed;
-        shapeAfter_ = entity->shape;
-        return true;
-    }
-
-    void Undo(Document& doc) override {
-        if (Entity* entity = doc.FindEntityMutable(targetId_)) {
-            entity->shape = shapeBefore_;
-        }
-    }
-
-    void Redo(Document& doc) override {
-        if (Entity* entity = doc.FindEntityMutable(targetId_)) {
-            entity->shape = shapeAfter_;
-        }
+protected:
+    [[nodiscard]] bool DoOperation(Document& doc, EntityId id) override {
+        return TrimEntity(doc, id, cutterId_, clickPoint_);
     }
 
 private:
-    EntityId targetId_;
     EntityId cutterId_;
     geometry::Point2d clickPoint_;
-    Shape shapeBefore_{};
-    Shape shapeAfter_{};
 };
 
 }

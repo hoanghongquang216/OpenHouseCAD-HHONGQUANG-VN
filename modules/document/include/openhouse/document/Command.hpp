@@ -62,9 +62,9 @@ public:
 // caught and fixed during this Spiral's design review, not a
 // theoretical concern. Every access below re-resolves the entity via
 // FindEntity/FindEntityMutable(id_) at the moment it's actually needed.
-class TransformEntityCommandBase : public ICommand {
+class EntityShapeCommandBase : public ICommand {
 protected:
-    explicit TransformEntityCommandBase(EntityId id) noexcept : id_(id) {}
+    explicit EntityShapeCommandBase(EntityId id) noexcept : id_(id) {}
 
     // Subclasses implement this to call the ONE matching existing
     // document-layer function (TranslateEntity/RotateEntity/
@@ -72,7 +72,7 @@ protected:
     // (Locked/Visible/factor>0 checks). Duplicating that logic here
     // would risk it silently drifting out of sync with Transform.hpp's
     // own rules.
-    [[nodiscard]] virtual bool DoTransform(Document& doc, EntityId id) = 0;
+    [[nodiscard]] virtual bool DoOperation(Document& doc, EntityId id) = 0;
 
 public:
     [[nodiscard]] bool Execute(Document& doc) override {
@@ -81,7 +81,7 @@ public:
             return false;
         }
         shapeBefore_ = entity->shape; // snapshot immediately before the change
-        if (!DoTransform(doc, id_)) {
+        if (!DoOperation(doc, id_)) {
             return false; // rejected (locked/hidden/invalid factor/etc.) --
                            // nothing changed, nothing to snapshot as "after"
         }
@@ -116,13 +116,13 @@ private:
     Shape shapeAfter_{};
 };
 
-class TranslateCommand final : public TransformEntityCommandBase {
+class TranslateCommand final : public EntityShapeCommandBase {
 public:
     TranslateCommand(EntityId id, geometry::Vector2d delta) noexcept
-        : TransformEntityCommandBase(id), delta_(delta) {}
+        : EntityShapeCommandBase(id), delta_(delta) {}
 
 protected:
-    [[nodiscard]] bool DoTransform(Document& doc, EntityId id) override {
+    [[nodiscard]] bool DoOperation(Document& doc, EntityId id) override {
         return TranslateEntity(doc, id, delta_);
     }
 
@@ -130,13 +130,13 @@ private:
     geometry::Vector2d delta_;
 };
 
-class RotateCommand final : public TransformEntityCommandBase {
+class RotateCommand final : public EntityShapeCommandBase {
 public:
     RotateCommand(EntityId id, double radians, geometry::Point2d pivot) noexcept
-        : TransformEntityCommandBase(id), radians_(radians), pivot_(pivot) {}
+        : EntityShapeCommandBase(id), radians_(radians), pivot_(pivot) {}
 
 protected:
-    [[nodiscard]] bool DoTransform(Document& doc, EntityId id) override {
+    [[nodiscard]] bool DoOperation(Document& doc, EntityId id) override {
         return RotateEntity(doc, id, radians_, pivot_);
     }
 
@@ -145,13 +145,13 @@ private:
     geometry::Point2d pivot_;
 };
 
-class ScaleCommand final : public TransformEntityCommandBase {
+class ScaleCommand final : public EntityShapeCommandBase {
 public:
     ScaleCommand(EntityId id, double factor, geometry::Point2d pivot) noexcept
-        : TransformEntityCommandBase(id), factor_(factor), pivot_(pivot) {}
+        : EntityShapeCommandBase(id), factor_(factor), pivot_(pivot) {}
 
 protected:
-    [[nodiscard]] bool DoTransform(Document& doc, EntityId id) override {
+    [[nodiscard]] bool DoOperation(Document& doc, EntityId id) override {
         // factor > 0 is still enforced inside ScaleEntity itself (see
         // Transform.hpp) -- this command does not duplicate that check;
         // it just forwards to the one function that owns the rule.
