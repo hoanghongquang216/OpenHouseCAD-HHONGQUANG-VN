@@ -11,6 +11,49 @@ consumers yet.
 
 Nothing yet.
 
+## [snap-intersection-001] - Snap query: Intersection (Line-Line, Line-Circle, Line-Arc, Circle-Circle, Circle-Arc, Arc-Arc)
+
+Consumes `GEOM-INTERSECTION-001`'s `geometry::Intersect(...)` family
+(per ADR-0006's layering). No new geometric formula in this Sprint --
+purely Document Services composition, as scoped in
+`docs/SNAP_BACKLOG.md`.
+
+### Added
+- `SnapType::Intersection`, the 4th kind alongside
+  `Endpoint`/`Midpoint`/`Center`.
+- `document::FindSnapPoint()` now also checks every unordered pair of
+  visible-layer entities (`i < j`, since Intersection is symmetric --
+  `geometry::Intersect` already has both argument orders) via
+  `std::visit` over both entities' `Shape` variants at once, calling
+  `geometry::Intersect(...)` and offering each resulting point as an
+  `Intersection`-typed candidate, competing on distance exactly like
+  the existing per-entity candidates.
+- 6 new regression tests in `SnapTests.cpp`: Line-Line and Line-Circle
+  intersection found; no spurious Intersection candidate when lines
+  don't cross; Intersection correctly skipped when either entity of
+  the pair is on a hidden layer; non-Intersection results carry a
+  `nullopt` `relatedEntityId`; Intersection competes on distance
+  against a same-query Endpoint candidate (nearer one wins).
+
+### Breaking
+- `SnapResult::id` renamed to `SnapResult::entityId`. `secondId` was
+  considered and rejected (implies an ordering that doesn't exist for
+  a symmetric Intersection pair) in favor of `relatedEntityId`, a new
+  `std::optional<EntityId>` field, populated only for
+  `SnapType::Intersection`. All 9 existing `->id` call sites in
+  `SnapTests.cpp` updated to `->entityId`; verified by rebuilding and
+  rerunning the full test suite (28/28 pass) after the rename, per the
+  same verification discipline the Layer System Sprint's own `###
+  Breaking` entry used.
+
+### Design note
+Two separate loops in `FindSnapPoint()` -- the existing per-entity one
+or the new per-pair one -- rather than folding Intersection into the
+first: the per-entity loop is inherently O(n) over single shapes, the
+pair loop inherently O(n^2) over shape pairs; forcing both into one
+loop shape would not read clearly. See `Snap.hpp`'s own comment on the
+loop split.
+
 ## [snap-core-001] - Snap query: Endpoint, Midpoint, Center
 
 First CAD-core Sprint after the DXF-003/ROBUST-002/003a/LAYER-PROPS-001

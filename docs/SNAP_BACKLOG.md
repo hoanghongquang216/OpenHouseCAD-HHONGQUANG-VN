@@ -29,8 +29,8 @@ is only for things NOT yet implemented.
 
 **Depends on:** `GEOM-INTERSECTION-001` (see `docs/GEOM_BACKLOG.md`).
 
-**Status:** Blocked by Geometry primitive -- not started until
-`GEOM-INTERSECTION-001` merges.
+**Status:** Shipped -- see `CHANGELOG.md`'s `snap-intersection-001`
+entry.
 
 **Current behaviour:** `document::FindSnapPoint()` (`Snap.hpp`)
 recognizes only `Endpoint`, `Midpoint`, and `Center` -- see
