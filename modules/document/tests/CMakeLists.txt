@@ -163,3 +163,16 @@ add_test(
     NAME OpenHouseTrimTests
     COMMAND OpenHouseTrimTests
 )
+add_executable(OpenHouseExtendTests
+    ExtendTests.cpp
+)
+target_link_libraries(OpenHouseExtendTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+openhouse_enable_warnings(OpenHouseExtendTests)
+add_test(
+    NAME OpenHouseExtendTests
+    COMMAND OpenHouseExtendTests
+)

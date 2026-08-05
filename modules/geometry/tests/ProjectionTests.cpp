@@ -1,8 +1,8 @@
 #include <openhouse/geometry/Projection.hpp>
 #include <openhouse/testing/Check.hpp>
 
-#include <cstdio>
 #include <cmath>
+#include <cstdio>
 
 using namespace openhouse::geometry;
 
@@ -58,6 +58,47 @@ static void TestParameterDegenerateLineReturnsZero() {
     OH_CHECK(NearlyEqual(t, 0.0));
 }
 
+static void TestExtendFindsIntersectionPastTargetEnd() {
+    const Line2d target{{0.0, 0.0}, {3.0, 0.0}};
+    const Line2d boundary{{5.0, -5.0}, {5.0, 5.0}};
+    const auto result = FindExtendIntersection(target, boundary);
+    OH_CHECK(result.has_value());
+    OH_CHECK(NearlyEqual(result->x, 5.0));
+    OH_CHECK(NearlyEqual(result->y, 0.0));
+}
+
+static void TestExtendFindsIntersectionBeforeTargetStart() {
+    const Line2d target{{0.0, 0.0}, {3.0, 0.0}};
+    const Line2d boundary{{-5.0, -5.0}, {-5.0, 5.0}};
+    const auto result = FindExtendIntersection(target, boundary);
+    OH_CHECK(result.has_value());
+    OH_CHECK(NearlyEqual(result->x, -5.0));
+    OH_CHECK(NearlyEqual(result->y, 0.0));
+}
+
+static void TestExtendFailsWhenBoundarySegmentTooShort() {
+    const Line2d target{{0.0, 0.0}, {3.0, 0.0}};
+    const Line2d boundary{{5.0, 1.0}, {5.0, 5.0}};
+    const auto result = FindExtendIntersection(target, boundary);
+    OH_CHECK(!result.has_value());
+}
+
+static void TestExtendIntersectionAlreadyWithinTargetBounds() {
+    const Line2d target{{0.0, 0.0}, {10.0, 0.0}};
+    const Line2d boundary{{5.0, -5.0}, {5.0, 5.0}};
+    const auto result = FindExtendIntersection(target, boundary);
+    OH_CHECK(result.has_value());
+    OH_CHECK(NearlyEqual(result->x, 5.0));
+    OH_CHECK(NearlyEqual(result->y, 0.0));
+}
+
+static void TestExtendParallelLinesReturnsNullopt() {
+    const Line2d target{{0.0, 0.0}, {10.0, 0.0}};
+    const Line2d boundary{{0.0, 5.0}, {10.0, 5.0}};
+    const auto result = FindExtendIntersection(target, boundary);
+    OH_CHECK(!result.has_value());
+}
+
 int main() {
     TestParameterAtStart();
     TestParameterAtEnd();
@@ -66,6 +107,11 @@ int main() {
     TestParameterAfterEnd();
     TestParameterOnDiagonalLine();
     TestParameterDegenerateLineReturnsZero();
+    TestExtendFindsIntersectionPastTargetEnd();
+    TestExtendFindsIntersectionBeforeTargetStart();
+    TestExtendFailsWhenBoundarySegmentTooShort();
+    TestExtendIntersectionAlreadyWithinTargetBounds();
+    TestExtendParallelLinesReturnsNullopt();
     std::puts("ProjectionTests: all tests passed.");
     return 0;
 }
