@@ -1,8 +1,12 @@
 #pragma once
 
+#include <openhouse/foundation/CMath.hpp>
 #include <openhouse/foundation/Concepts.hpp>
 #include <openhouse/geometry/Line2.hpp>
 #include <openhouse/geometry/Point2.hpp>
+
+#include <limits>
+#include <optional>
 
 namespace openhouse::geometry {
 
@@ -38,6 +42,59 @@ template<foundation::FloatingPoint T>
     const T px = point.x - line.start.x;
     const T py = point.y - line.start.y;
     return (px * dx + py * dy) / lengthSquared;
+}
+
+// EXTEND-001: intersection of `target`'s infinite line with `boundary`
+// as a bounded SEGMENT. Corresponds to AutoCAD's EDGEMODE=0 ("No
+// extend") -- `target` is treated as extending infinitely in both
+// directions (that is the entire point of Extend: the target's own
+// current endpoints do not constrain where it may meet the boundary),
+// while `boundary` keeps its normal segment bounds (s in [0,1]).
+// AutoCAD/LibreCAD also support an EDGEMODE=1 ("implied edge") mode
+// where the boundary is ALSO treated as infinite -- deliberately not
+// implemented here; see EXTEND-002 in the backlog. Adding it later is
+// an additional function/overload, not a change to this one's
+// contract.
+//
+// Uses the same parametric-form solve as Intersect(Line2,Line2)
+// (Intersection.hpp), but only enforces the [0,1] bound on `boundary`'s
+// own parameter (`s`), not `target`'s (`t`).
+//
+// Returns std::nullopt if the lines are parallel (including collinear
+// overlap -- same "no single well-defined point" reasoning as
+// Intersect(Line2,Line2), see Intersection.hpp), or if the computed
+// point falls outside `boundary`'s own segment bounds.
+template<foundation::FloatingPoint T>
+[[nodiscard]] std::optional<Point2<T>> FindExtendIntersection(const Line2<T>& target,
+                                                                const Line2<T>& boundary) noexcept {
+    const T ax = target.end.x - target.start.x;
+    const T ay = target.end.y - target.start.y;
+    const T bx = boundary.end.x - boundary.start.x;
+    const T by = boundary.end.y - boundary.start.y;
+
+    const T denom = ax * by - ay * bx;
+    // Same local-epsilon convention as Intersection.hpp's own
+    // detail::NearlyZero -- deliberately duplicated rather than shared,
+    // for the same non-dependency reasons documented there.
+    const T eps = std::numeric_limits<T>::epsilon() * T{100};
+    if (foundation::abs(denom) <= eps) {
+        return std::nullopt;
+    }
+
+    const T cx = boundary.start.x - target.start.x;
+    const T cy = boundary.start.y - target.start.y;
+
+    // s is boundary's own parameter -- this IS bounds-checked.
+    const T s = (cx * ay - cy * ax) / denom;
+    if (s < -eps || s > T{1} + eps) {
+        return std::nullopt;
+    }
+
+    // t is target's parameter -- deliberately NOT bounds-checked; this
+    // is the entire reason this function exists rather than reusing
+    // Intersect(Line2,Line2).
+    const T t = (cx * by - cy * bx) / denom;
+    return Point2<T>{target.start.x + t * ax, target.start.y + t * ay};
 }
 
 }
