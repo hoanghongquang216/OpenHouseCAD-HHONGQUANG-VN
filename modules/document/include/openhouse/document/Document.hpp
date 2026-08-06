@@ -59,11 +59,13 @@ struct Entity {
 // default layer -- the literal name "0", not "Layer0" or similar), so
 // `Add()` with no explicit layer always has somewhere valid to go.
 //
-// Still intentionally minimal: no nested/grouped layers, no per-entity
-// deletion yet (see FindEntity's own TODO(Spiral5) below for why that
-// matters to this class's internal indexing). Each addition here is
-// scoped to what's actually needed by the Spiral requesting it, not
-// built ahead of that need.
+// Entity removal (RemoveEntity) and id-preserving restoration (Restore)
+// were added in COPY-001 (Sprint 4) -- see
+// docs/design/COPY-001-Design.md Section 3 for the full contract these
+// two methods are required to satisfy. Both exist to serve
+// EntityCreationCommandBase's Undo/Redo (Command.hpp), not as a
+// general-purpose "delete entity" user action -- DELETE-001 is expected
+// to build on RemoveEntity directly, but does not exist yet.
 class Document {
 public:
     static constexpr const char* kDefaultLayerName = "0";
@@ -120,6 +122,12 @@ public:
     // Entities(). Existing callers that ignore the return value (every
     // call site before this Spiral) are unaffected -- this is an
     // additive change to Add()'s signature, not a behavioral one.
+    //
+    // Contract note (COPY-001 / Design §3): this is the ONLY way to
+    // obtain a brand-new EntityId. Callers never get to pick the id --
+    // see Restore() below for the distinct, narrowly-scoped method that
+    // exists for the one legitimate case (Undo/Redo machinery) where an
+    // id must be reused rather than freshly allocated.
     EntityId Add(Shape shape, foundation::string layerName = kDefaultLayerName) {
         CreateLayer(layerName); // no-op if it already exists
         const EntityId id = nextId_++;
@@ -128,23 +136,88 @@ public:
         return id;
     }
 
+    // Removes the entity identified by `id`, if it exists. Reindexes
+    // every entity that came after the removed one in Entities() so that
+    // FindEntity/FindEntityMutable stay correct for all of them --
+    // resolving the tradeoff TODO(Spiral5) (see the original comment on
+    // FindEntity, now folded into this method's implementation) flagged
+    // as needing a deliberate decision once deletion was added. Chosen
+    // approach: `entities_` stays a simple, insertion-order-preserving
+    // vector (RenderToSvg's stacking order still depends on this, see
+    // RenderDocumentTests.cpp's TestOrderIsPreserved), and `index_` is
+    // repaired for the affected suffix on every removal -- O(n) in the
+    // worst case (removing the first entity of a large document), judged
+    // acceptable at CAD-drawing scale per COPY-001-Architecture-Audit.md's
+    // risk assessment. Revisit only if profiling ever shows this is
+    // actually hot.
+    //
+    // Does NOT touch nextId_ -- a removed id is never reissued to a new
+    // logical entity by Add(). This is the same "IDs never reused"
+    // invariant Clear() already documents, extended to per-entity
+    // removal.
+    //
+    // Returns true if an entity was actually removed, false if `id`
+    // didn't resolve to an existing entity (a no-op, not an error --
+    // same convention as SelectionSet::Deselect and the *Entity
+    // transform functions in Transform.hpp).
+    bool RemoveEntity(EntityId id) {
+        const auto it = index_.find(id);
+        if (it == index_.end()) {
+            return false;
+        }
+        const std::size_t pos = it->second;
+        entities_.erase(entities_.begin() + static_cast<std::ptrdiff_t>(pos));
+        index_.erase(it);
+        // Every entity that was after `pos` shifted left by one position
+        // when erase() closed the gap -- repair index_ for exactly that
+        // suffix (entities before `pos` are untouched, no need to
+        // revisit them).
+        for (std::size_t i = pos; i < entities_.size(); ++i) {
+            index_[entities_[i].id] = i;
+        }
+        return true;
+    }
+
+    // Re-adds an entity at a SPECIFIC, caller-supplied id, rather than
+    // allocating a fresh one from nextId_. This is deliberately a
+    // separate method from Add() -- not an overload -- so that Add()'s
+    // contract ("you don't get to pick the id") stays honest for
+    // ordinary callers; only Undo/Redo machinery (EntityCreationCommandBase's
+    // Redo hook, Command.hpp) is expected to call this. See
+    // docs/design/COPY-001-Design.md Section 3 for the full rationale.
+    //
+    // Precondition: `id` must have been previously issued by this same
+    // Document's Add() (i.e. `id != kInvalidEntityId && id < nextId_`)
+    // and must not currently resolve to a live entity. Both conditions
+    // should be unreachable through the public Command surface -- they
+    // are checked defensively here (returning false) rather than
+    // OH_ASSERTed, so a violation is a safe no-op instead of a crash,
+    // consistent with every other mutating Document method's "bool =
+    // did this actually change anything" convention rather than being
+    // the one exception that aborts.
+    //
+    // Does NOT touch nextId_. A restored id can never collide with a
+    // subsequently Add()-ed fresh id, because nextId_ only ever
+    // increases and a restored id is always strictly less than the
+    // current nextId_ (it was issued before nextId_ advanced past it).
+    bool Restore(EntityId id, Shape shape, foundation::string layerName) {
+        if (id == kInvalidEntityId || id >= nextId_) {
+            return false; // never a real id this Document issued
+        }
+        if (index_.find(id) != index_.end()) {
+            return false; // already occupied by a live entity
+        }
+        CreateLayer(layerName); // no-op if it already exists
+        entities_.push_back(Entity{id, foundation::move(shape), foundation::move(layerName)});
+        index_[id] = entities_.size() - 1;
+        return true;
+    }
+
     [[nodiscard]] const foundation::vector<Entity>& Entities() const noexcept { return entities_; }
 
     // O(1) lookup by EntityId, via the index_ map maintained alongside
-    // entities_.
-    //
-    // TODO(Spiral5):
-    // This index is only correct as long as entities_ is append-only.
-    // Once per-entity deletion exists, removing from the middle of
-    // entities_ shifts every subsequent element's position, which would
-    // require either an O(n) reindex on every delete, or switching to a
-    // structure that doesn't have this problem (e.g. keying storage
-    // directly by EntityId -- at the cost of no longer trivially
-    // preserving insertion order for iteration/rendering, which
-    // RenderToSvg's stacking order currently depends on -- see
-    // RenderDocumentTests.cpp's TestOrderIsPreserved). Whoever implements
-    // deletion in Spiral 5's Command System needs to resolve this
-    // tradeoff deliberately, not inherit it by accident.
+    // entities_. Kept correct across RemoveEntity() by that method's own
+    // suffix-reindexing (see its comment above).
     [[nodiscard]] const Entity* FindEntity(EntityId id) const noexcept {
         const auto it = index_.find(id);
         if (it == index_.end()) {

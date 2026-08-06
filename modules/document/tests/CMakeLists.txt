@@ -176,3 +176,16 @@ add_test(
     NAME OpenHouseExtendTests
     COMMAND OpenHouseExtendTests
 )
+add_executable(OpenHouseDocumentRemoveRestoreTests
+    DocumentRemoveRestoreTests.cpp
+)
+target_link_libraries(OpenHouseDocumentRemoveRestoreTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+openhouse_enable_warnings(OpenHouseDocumentRemoveRestoreTests)
+add_test(
+    NAME OpenHouseDocumentRemoveRestoreTests
+    COMMAND OpenHouseDocumentRemoveRestoreTests
+)
