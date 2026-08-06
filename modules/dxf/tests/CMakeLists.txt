@@ -40,3 +40,17 @@ add_test(
     NAME OpenHouseSvgPipelineIntegrationTests
     COMMAND OpenHouseSvgPipelineIntegrationTests
 )
+add_executable(OpenHouseDxfWriterTests
+    DxfWriterTests.cpp
+)
+target_link_libraries(OpenHouseDxfWriterTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Dxf
+        OpenHouse::Document
+)
+openhouse_enable_warnings(OpenHouseDxfWriterTests)
+add_test(
+    NAME OpenHouseDxfWriterTests
+    COMMAND OpenHouseDxfWriterTests
+)
