@@ -230,3 +230,21 @@ overstate them as planned work):
   evidence anything needs the extra precision true color would add.
 - **Plot style** -- no concept of plot styles exists anywhere in this
   codebase; nothing here proposes adding one.
+
+---
+
+## DXF-EXPORT-002
+
+**Title:** DXF layer/entity name escaping on export (special characters in a layer name).
+
+**Priority:** Low
+
+**Status:** Deferred -- needs research before implementation
+
+**Current behaviour:** `DxfWriter` writes layer/entity-layer names verbatim (group codes 2/8). Never audited whether a name containing characters DXF treats specially (if any -- not yet confirmed either way) needs escaping.
+
+**Proposed behaviour:** _TODO -- research DXF name-encoding rules first._
+
+**Reason:** Surfaced by DXF-EXPORT-001s Phase 6 Review -- Import never had to write a name back out, only read one, so this gap was invisible until Export existed.
+
+**Trigger to revisit:** A real DXF file with an unusual layer name is reported to fail re-import after an OpenHouseCAD export, or a deliberate audit of DXF names encoding rules is scheduled.

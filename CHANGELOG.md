@@ -10,6 +10,37 @@ consumers yet.
 ## [Unreleased]
 
 Nothing yet.
+## [dxf-export-001] - DXF Export (LINE/CIRCLE/ARC, layer table)
+
+Closes the "save a basic DXF file" half of the v0.1 Alpha criteria (Import
+already covered "open"). Selected via a formal Roadmap Review over
+Dimension/Printing/Qt6-UI-wiring -- see docs/design/DXF-EXPORT-001*.md for
+the full trail, including three resolved Decision Gates (DG-001 export
+scope, DG-002 visibility policy, DG-003 color reverse-mapping).
+### Added
+- `DxfWriter`: `WriteDxfStream`/`WriteDxfFile`, two free functions (not a
+  builder class -- Document -> DXF is a one-shot transform). Writes
+  HEADER, TABLES/LAYER (name, color, linetype), and ENTITIES (Line/Circle/
+  Arc) for DXF R12. Every entity is exported regardless of layer
+  visibility (DG-002) -- persistence is independent of display state,
+  matching AutoCAD's own On/Off/Freeze semantics.
+- Exact reverse mapping of `DxfReader`'s ACI-color and linetype-name
+  tables. An unmapped color omits DXF group code 62 entirely rather than
+  guessing a nearest match (DG-003) -- the DXF-standard default (ACI 7)
+  applies on re-read.
+### Testing
+- 13 functional tests, 6 round-trip tests (Document -> Export -> Import),
+  and 3 golden-file tests (byte-for-byte output comparison, generated from
+  real compiled output rather than hand-authored) across
+  `DxfWriterTests.cpp`, `DxfRoundTripTests.cpp`, and
+  `DxfWriterGoldenFileTests.cpp`.
+- Full suite: 38/38 passing, no regressions in any existing suite.
+### Review note
+Phase 6 Review (vs. AutoCAD/LibreCAD/QCAD) passed on UX, architecture,
+performance, and extensibility. Zero changes to Document/Layer/DxfReader --
+smallest blast radius of any Sprint so far. One new backlog item recorded
+(DXF-EXPORT-002: layer-name escaping on export, deferred pending a
+concrete trigger).
 ## [delete-001] - Delete command with Undo/Redo
 
 Closes the Copy/Delete gap identified by the Epic 4 Health Check. Reuses the
