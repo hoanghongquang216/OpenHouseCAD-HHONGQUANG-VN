@@ -10,6 +10,28 @@ consumers yet.
 ## [Unreleased]
 
 Nothing yet.
+## [delete-001] - Delete command with Undo/Redo
+Closes the Copy/Delete gap identified by the Epic 4 Health Check. Reuses the
+Document::RemoveEntity/Restore infrastructure COPY-001 introduced -- no new
+Document or Geometry API required for this Sprint. Delivered via the
+project's 6-phase design process -- see `docs/design/DELETE-001*.md`.
+### Added
+- `DeleteCommand`: deletes a single entity (Line/Circle/Arc), full Undo/Redo.
+  Implements `ICommand` directly rather than sharing `EntityCreationCommandBase`
+  -- Delete runs the opposite direction (Execute removes, Undo restores), so
+  reusing that base would invert the meaning of its hooks.
+### Internal
+- Built entirely on Add/Remove/Restore infrastructure already shipped in
+  COPY-001 -- validates that infrastructure now against two real consumers.
+- 15 new regression tests in `DeleteTests.cpp` (functional, undo/redo,
+  error/edge coverage per `docs/design/DELETE-001-Test-Design.md`).
+- Full suite: 35/35 passing, no regressions in any existing suite.
+### Review note
+Phase 6 Review (vs. AutoCAD/LibreCAD/QCAD) passed on UX, architecture,
+performance, and extensibility. Add/Remove/Restore is now proven by two
+independent commands, opening a clear path to Paste/Array/Cut without
+further Document-layer changes.
+
 ## [copy-001] - Copy command with Undo/Redo (entity-creation infrastructure)
 
 Closes the Copy/Delete gap the Epic 4 Health Check flagged as highest ROI
