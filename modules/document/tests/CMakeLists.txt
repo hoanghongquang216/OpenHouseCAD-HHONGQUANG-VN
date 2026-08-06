@@ -215,3 +215,16 @@ add_test(
     NAME OpenHouseCopyTests
     COMMAND OpenHouseCopyTests
 )
+add_executable(OpenHouseDeleteTests
+    DeleteTests.cpp
+)
+target_link_libraries(OpenHouseDeleteTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+openhouse_enable_warnings(OpenHouseDeleteTests)
+add_test(
+    NAME OpenHouseDeleteTests
+    COMMAND OpenHouseDeleteTests
+)
