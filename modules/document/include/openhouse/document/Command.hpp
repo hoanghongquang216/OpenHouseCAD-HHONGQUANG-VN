@@ -240,4 +240,38 @@ private:
     foundation::string layer_;
 };
 
+// Copies a single entity by `delta`, leaving the source entity
+// untouched. Per docs/design/COPY-001.md (Domain Research), Copy is
+// Translate applied to a duplicate rather than a distinct geometric
+// operation -- BuildEntity() below reuses the same geometry::Translate
+// dispatch TranslateEntity (Transform.hpp) uses, and reuses
+// CanTransform() as the same permission gate every other *Entity
+// function already applies to its source/target.
+//
+// Deliberately contains NO lifecycle logic of its own (create/remove/
+// restore, id bookkeeping) -- all of that is EntityCreationCommandBase's
+// job. This class's only responsibility is answering "what should the
+// new entity look like," per Design §4's stated boundary.
+class CopyCommand final : public EntityCreationCommandBase {
+public:
+    CopyCommand(EntityId sourceId, geometry::Vector2d delta) noexcept
+        : sourceId_(sourceId), delta_(delta) {}
+
+protected:
+    [[nodiscard]] std::optional<Entity> BuildEntity(Document& doc) override {
+        const Entity* src = doc.FindEntity(sourceId_);
+        if (src == nullptr || !CanTransform(doc, sourceId_)) {
+            return std::nullopt;
+        }
+        Shape clone = std::visit(
+            [this](const auto& s) -> Shape { return geometry::Translate(s, delta_); },
+            src->shape);
+        return Entity{kInvalidEntityId, foundation::move(clone), src->layer};
+    }
+
+private:
+    EntityId sourceId_;
+    geometry::Vector2d delta_;
+};
+
 }

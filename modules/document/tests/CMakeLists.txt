@@ -202,3 +202,16 @@ add_test(
     NAME OpenHouseEntityCreationCommandBaseTests
     COMMAND OpenHouseEntityCreationCommandBaseTests
 )
+add_executable(OpenHouseCopyTests
+    CopyTests.cpp
+)
+target_link_libraries(OpenHouseCopyTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+openhouse_enable_warnings(OpenHouseCopyTests)
+add_test(
+    NAME OpenHouseCopyTests
+    COMMAND OpenHouseCopyTests
+)
