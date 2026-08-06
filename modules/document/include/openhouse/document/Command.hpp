@@ -274,4 +274,47 @@ private:
     geometry::Vector2d delta_;
 };
 
+// Deletes a single entity. Per docs/design/DELETE-001-Design.md Section 3,
+// deliberately does NOT subclass EntityCreationCommandBase -- Delete runs
+// the opposite direction (Execute removes, Undo restores) from what that
+// base's hooks mean, so it implements ICommand directly instead. Reuses
+// the exact same Document::RemoveEntity/Restore pair EntityCreationCommandBase
+// already uses, just in the mirrored order -- no new Document API needed
+// (per DELETE-001-Architecture-Audit.md's GO finding).
+//
+// `id_` is fixed at construction and never reassigned -- unlike
+// EntityCreationCommandBase's id_ (which starts invalid until a
+// successful Execute assigns a freshly-created entity's id),
+// DeleteCommand's target is always known up front.
+class DeleteCommand final : public ICommand {
+public:
+    explicit DeleteCommand(EntityId id) noexcept : id_(id) {}
+
+    [[nodiscard]] bool Execute(Document& doc) override {
+        const Entity* entity = doc.FindEntity(id_);
+        if (entity == nullptr || !CanTransform(doc, id_)) {
+            return false;
+        }
+        shape_ = entity->shape; // snapshot before removal, for Undo
+        layer_ = entity->layer;
+        return doc.RemoveEntity(id_);
+    }
+
+    void Undo(Document& doc) override { doc.Restore(id_, shape_, layer_); }
+
+    // Does not re-resolve or re-snapshot -- the entity is guaranteed to
+    // exist at id_ (Undo just restored it there) with the same
+    // shape_/layer_ already saved from Execute(). Mirrors the "don't
+    // recompute, reuse the saved snapshot" Memento discipline used
+    // throughout this file.
+    void Redo(Document& doc) override { doc.RemoveEntity(id_); }
+
+    [[nodiscard]] EntityId Id() const noexcept { return id_; }
+
+private:
+    EntityId id_;
+    Shape shape_{};
+    foundation::string layer_;
+};
+
 }
