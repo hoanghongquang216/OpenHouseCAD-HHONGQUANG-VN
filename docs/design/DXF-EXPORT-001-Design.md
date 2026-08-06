@@ -66,6 +66,31 @@ stream/file argument's own normal C++ lifetime rules.
 this Sprint's code (matches `SvgDocument::WriteToFile`'s existing
 no-throw convention).
 
+**No partial/corrupt output on failure -- resolved by construction, not by
+error-recovery logic.** `WriteDxfStream` builds the entire DXF document as
+a single in-memory string first (every group-code write in §3/§4 is
+string concatenation, which cannot fail) -- exactly `SvgDocument::ToString()`'s
+existing, already-tested pattern -- then writes that complete string to
+`out` in one `<<` call and checks `out.fail()` once. Either the whole
+document is written, or nothing meaningful is (the stream's fail state is
+set with at most a truncated fragment of the pre-built string, no
+different in kind from any other single large write to a failing stream).
+There is no midpoint where `HEADER`/`TABLES` succeeded but `ENTITIES` is
+missing -- the string is either fully formed in memory before any I/O
+happens, or `WriteDxfStream` never reaches the point of writing it.
+
+**Determinism -- guaranteed by construction, stated explicitly since Phase
+4's golden-file tests depend on it.** `WriteLayerTable` iterates
+`doc.Layers()` and `WriteEntities` iterates `doc.Entities()`, both
+`foundation::vector`s in insertion order (no sorting, no hash-based
+iteration anywhere in this pipeline) -- the same insertion-order guarantee
+`RenderDocumentTests.cpp`'s `TestOrderIsPreserved` already relies on for
+`RenderToSvg`. For a given `Document`, `WriteDxfStream`'s output is
+byte-for-byte identical across repeated calls -- a prerequisite for
+golden-file testing to be meaningful at all (a golden-file test against
+nondeterministic output would be flaky by construction, not a real
+regression signal).
+
 ## 3. Serialization Pipeline
 
 ```

@@ -40,14 +40,37 @@ DXF), `WriteDxfStream` it out, `ParseDxfStream` the result back in, compare.
 | R-005 | A layer with each `LineType` value → export → re-import | Re-imported `LineType` is bit-identical to the original for all 4 values -- lossless, since this mapping is a closed bijection unlike color |
 | R-006 | An `Arc2d` with a negative sweep (clockwise, per `Arc2.hpp`'s own convention) → export → re-import | Sweep direction survives the radian→degree→radian round-trip; re-imported `startAngle`/`endAngle` reproduce the original sweep sign, not just its magnitude |
 
-## 3. Error & Edge Cases
+## 3. Golden File Tests (`DxfWriterGoldenFileTests.cpp`)
+
+Added per Gate Review (before Phase 5): a serializer's output format is
+easy to accidentally change (group-code order, whitespace, line-ending
+style) in a way unit assertions on individual fields wouldn't catch.
+Golden-file testing is only meaningful because Design's Determinism
+guarantee (§2, addendum) holds -- without it, this category would be
+flaky by construction, not a real signal.
+
+| ID | Test | Expected result |
+|---|---|---|
+| G-001 | A small, fixed `Document` (one `Line2d`, one `Circle2d`, one `Arc2d`, two named layers with distinct colors/linetypes) → `WriteDxfStream` | Output matches a checked-in reference file (`testdata/golden_basic.dxf`) byte-for-byte |
+| G-002 | An empty `Document` → `WriteDxfStream` | Output matches a checked-in reference file (`testdata/golden_empty.dxf`) byte-for-byte |
+| G-003 | Same `Document` as G-001, written twice in the same test run | Both outputs are byte-for-byte identical to each other (direct test of the Determinism guarantee itself, independent of the reference file) |
+
+**Maintenance note for whoever reviews a future golden-file diff:** a
+failing G-001/G-002 means the output format changed -- that's expected and
+fine when a deliberate format change is being made (regenerate the
+reference file as part of that change); it's a real regression when the
+change was unintentional. This distinction is a human judgment call at
+review time, not something the test itself can make -- flagged here so
+Phase 6 Review doesn't need to rediscover this.
+
+## 4. Error & Edge Cases
 
 | ID | Case | Expected result |
 |---|---|---|
 | E-001 | Layer name containing characters DXF treats specially (not yet researched -- flagged in Phase 1 §4) | **Deferred, not tested this Sprint** -- Phase 1 explicitly flagged this as unresearched; testing it now would mean inventing untested behavior. If a real layer-naming need surfaces, it gets its own audit before a test is written against it, same discipline as A2 Deferred-by-Design items elsewhere in this project |
 | E-002 | Very large positive/negative `Arc2d` angles (beyond one full turn) | Degree conversion is a pure linear scale (`radians * 180/pi`) -- no wraparound/normalization is applied (matches `Arc2.hpp`'s own documented "not clamped/normalized" stance on `Sweep()`), so this is expected arithmetic behavior, not an edge case requiring special handling; one test confirms the raw conversion is exact, not that any normalization occurs |
 
-## 4. Regression Tests (existing suites — must stay green, unmodified)
+## 5. Regression Tests (existing suites — must stay green, unmodified)
 
 | Suite | Must still pass |
 |---|---|
@@ -56,7 +79,7 @@ DXF), `WriteDxfStream` it out, `ParseDxfStream` the result back in, compare.
 | `OpenHouseSvgPipelineIntegrationTests` | Unchanged |
 | `OpenHouseDocumentTests`, `OpenHouseLayerTests` | Unchanged -- confirms no `Document`/`Layer` schema drift, per Phase 2's Q1/Q4 finding |
 
-## 5. Sprint completion criteria
+## 6. Sprint completion criteria
 
 Same standard as COPY-001/DELETE-001: all tests in Sections 1–3 pass, all
 Section 4 regression suites pass unmodified, CI green, and any new
