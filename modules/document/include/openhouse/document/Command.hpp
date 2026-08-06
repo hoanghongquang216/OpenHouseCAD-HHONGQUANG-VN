@@ -6,6 +6,8 @@
 #include <openhouse/geometry/Point2.hpp>
 #include <openhouse/geometry/Vector2.hpp>
 
+#include <optional>
+
 namespace openhouse::document {
 
 // A single undoable/redoable operation on a Document. Spiral 5's
@@ -161,6 +163,81 @@ protected:
 private:
     double factor_;
     geometry::Point2d pivot_;
+};
+
+// Shared base for any command whose job is to add exactly ONE new
+// entity to the Document (Execute creates it, Undo removes it, Redo
+// re-creates it at the same id). Added for COPY-001 (Sprint 4) -- see
+// docs/design/COPY-001-Design.md Section 4 for the full rationale,
+// including why DELETE-001 deliberately does NOT share this base (it
+// runs the opposite direction: Execute removes, Undo restores).
+//
+// Deliberately the mirror image of EntityShapeCommandBase's discipline:
+// never caches a pointer across calls (the same vector-reallocation
+// hazard applies to a newly-created entity's pointer as to an existing
+// one's), and stores only the minimal id/shape/layer snapshot needed to
+// reverse its own single Add.
+//
+// Responsibility boundary (kept deliberately narrow, per Design §4):
+// this class knows how to create/remove/restore ONE entity. It knows
+// NOTHING about where the new shape/layer comes from (cloning a source
+// entity, deserializing a clipboard payload, or anything else) -- that
+// is entirely BuildEntity()'s job, decided by the concrete subclass.
+// This base must never grow a Clone/Translate/CanTransform call of its
+// own; a subclass needing that logic implements it in BuildEntity()
+// instead, using whatever free functions already exist for it (e.g.
+// Transform.hpp's TranslateEntity, CanTransform) rather than this base
+// duplicating or wrapping them.
+class EntityCreationCommandBase : public ICommand {
+protected:
+    // Subclasses compute what the new entity should look like. Returns
+    // std::nullopt to reject (nothing created, no undo-relevant state
+    // recorded) -- same "reject via nullopt/false" convention already
+    // used by EntityShapeCommandBase::DoOperation and the *Entity
+    // transform functions in Transform.hpp. The returned Entity's `id`
+    // field is ignored -- Document::Add() assigns the real one.
+    [[nodiscard]] virtual std::optional<Entity> BuildEntity(Document& doc) = 0;
+
+public:
+    // Strong exception/failure safety: if BuildEntity() returns
+    // nullopt, this function returns false having made NO change to
+    // `doc` and NO change to this command's own stored state (id_
+    // stays kInvalidEntityId, shape_/layer_ stay default-constructed).
+    // There is no intermediate state where an entity was created but
+    // not recorded, or recorded but not created -- Document::Add() is
+    // the only mutating call in this function, and it only runs after
+    // BuildEntity() has already succeeded.
+    [[nodiscard]] bool Execute(Document& doc) override {
+        std::optional<Entity> built = BuildEntity(doc);
+        if (!built.has_value()) {
+            return false;
+        }
+        id_ = doc.Add(built->shape, built->layer);
+        shape_ = built->shape;
+        layer_ = built->layer;
+        return true;
+    }
+
+    // Safe to call even if Execute() never succeeded: id_ is
+    // kInvalidEntityId until a successful Execute() sets it, and
+    // Document::RemoveEntity(kInvalidEntityId) is a well-defined no-op
+    // (kInvalidEntityId can never be a live entity's id) -- so calling
+    // Undo() out of sequence cannot corrupt `doc` or crash, it simply
+    // does nothing.
+    void Undo(Document& doc) override { doc.RemoveEntity(id_); }
+
+    // Symmetrically safe to call before any successful Execute(): with
+    // id_ still kInvalidEntityId, Document::Restore() rejects
+    // immediately (its own precondition check) and leaves `doc`
+    // untouched.
+    void Redo(Document& doc) override { doc.Restore(id_, shape_, layer_); }
+
+    [[nodiscard]] EntityId Id() const noexcept { return id_; }
+
+private:
+    EntityId id_ = kInvalidEntityId;
+    Shape shape_{};
+    foundation::string layer_;
 };
 
 }

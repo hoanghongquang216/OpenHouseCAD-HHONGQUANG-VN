@@ -189,3 +189,16 @@ add_test(
     NAME OpenHouseDocumentRemoveRestoreTests
     COMMAND OpenHouseDocumentRemoveRestoreTests
 )
+add_executable(OpenHouseEntityCreationCommandBaseTests
+    EntityCreationCommandBaseTests.cpp
+)
+target_link_libraries(OpenHouseEntityCreationCommandBaseTests
+    PRIVATE
+        OpenHouse::Testing
+        OpenHouse::Document
+)
+openhouse_enable_warnings(OpenHouseEntityCreationCommandBaseTests)
+add_test(
+    NAME OpenHouseEntityCreationCommandBaseTests
+    COMMAND OpenHouseEntityCreationCommandBaseTests
+)
