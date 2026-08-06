@@ -11,28 +11,31 @@ longer relevant.
 
 ## DD-001: Generalize TransformEntityCommandBase
 
-**Decision:** Not yet made — deferred.
+**Decision:** Acted on — resolved by REFACTOR-001 (merged `9eacac2`).
 
-**Reason:** TRIM-001 and EXTEND-001 both intentionally wrote independent
-`ICommand` implementations (`TrimCommand`, `ExtendCommand`) rather than
-sharing `TransformEntityCommandBase`'s Memento logic, per each sprint's
-own Go decision (insufficient evidence of duplication at the time).
+**Resolution:** `TransformEntityCommandBase` was generalized into
+`EntityShapeCommandBase` (the `DoTransform` hook renamed to
+`DoOperation`). `TrimCommand` and `ExtendCommand` were rewritten to
+inherit it instead of duplicating the Memento pattern, each shrinking
+from ~54 lines to ~26-28 lines. Verified with zero regression (31/31
+tests passing at merge time, including the Translate/Rotate/Scale,
+Trim, and Extend suites).
 
-**Evidence:** As of EXTEND-001, three independent implementations now
-share the exact same Memento pattern (snapshot shape before, apply
-operation, snapshot shape after; `Undo`/`Redo` restore from the
-snapshots): `TransformEntityCommandBase`, `TrimCommand`,
-`ExtendCommand`. Domain research (Qt's `QUndoCommand`) confirms a
-lightweight base-class-plus-virtual-hook shared this way is a validated
-pattern, not over-engineering, for this project's scale.
+**Original reason (kept for context):** TRIM-001 and EXTEND-001 both
+intentionally wrote independent `ICommand` implementations
+(`TrimCommand`, `ExtendCommand`) rather than sharing
+`TransformEntityCommandBase`'s Memento logic, per each sprint's own Go
+decision (insufficient evidence of duplication at the time). By
+EXTEND-001, three independent implementations shared the exact same
+Memento pattern, meeting the evidence threshold for a shared base.
 
-**Impact if deferred further:** COPY-001 and DELETE-001 will each add
-a fourth and fifth near-identical implementation before this is
-addressed, compounding the debt.
-
-**Priority:** Medium-high — evidence threshold already met.
-
-**Review after:** Before COPY-001 implementation begins.
+**Review after (met):** Resolved before COPY-001 implementation began,
+as planned. `COPY-001`'s `EntityCreationCommandBase` and `DELETE-001`'s
+standalone `ICommand` implementation were both designed with
+`EntityShapeCommandBase` already in place as the precedent for when
+(and when not) to share a base — see
+`docs/design/COPY-001-Design.md` §4 and
+`docs/design/DELETE-001-Design.md` §2.
 
 ---
 
