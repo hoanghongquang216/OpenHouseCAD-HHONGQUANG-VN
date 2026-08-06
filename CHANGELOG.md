@@ -11,6 +11,7 @@ consumers yet.
 
 Nothing yet.
 ## [delete-001] - Delete command with Undo/Redo
+
 Closes the Copy/Delete gap identified by the Epic 4 Health Check. Reuses the
 Document::RemoveEntity/Restore infrastructure COPY-001 introduced -- no new
 Document or Geometry API required for this Sprint. Delivered via the
@@ -31,7 +32,6 @@ Phase 6 Review (vs. AutoCAD/LibreCAD/QCAD) passed on UX, architecture,
 performance, and extensibility. Add/Remove/Restore is now proven by two
 independent commands, opening a clear path to Paste/Array/Cut without
 further Document-layer changes.
-
 ## [copy-001] - Copy command with Undo/Redo (entity-creation infrastructure)
 
 Closes the Copy/Delete gap the Epic 4 Health Check flagged as highest ROI
