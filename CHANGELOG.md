@@ -10,7 +10,38 @@ consumers yet.
 ## [Unreleased]
 
 Nothing yet.
+## [copy-001] - Copy command with Undo/Redo (entity-creation infrastructure)
 
+Closes the Copy/Delete gap the Epic 4 Health Check flagged as highest ROI
+after Move. Delivered via the project's 6-phase design process (Domain
+Research → Architecture Audit → Design → Test Design → Implementation →
+Review) -- see `docs/design/COPY-001*.md` for the full trail.
+### Added
+- `Document::RemoveEntity(EntityId)` and `Document::Restore(EntityId, Shape,
+  layerName)` -- Document-layer infrastructure for any command that creates
+  or removes entities, not Copy-specific. `Restore` is a distinct method
+  from `Add()`, not an overload, so `Add()`'s "you don't pick the id"
+  contract stays honest for ordinary callers.
+- `EntityCreationCommandBase`, a shared Command base for "Execute creates
+  one entity, Undo removes it, Redo restores it at the same id" -- reusable
+  by future Paste/Array work without further Document-layer changes.
+- `CopyCommand`: copies a single entity (Line/Circle/Arc) by a displacement
+  vector, full Undo/Redo, source entity always left untouched. Reuses the
+  existing `TranslateEntity`/`CanTransform` machinery rather than
+  introducing new geometry.
+### Testing
+- 34 new regression tests across `DocumentRemoveRestoreTests.cpp`,
+  `EntityCreationCommandBaseTests.cpp`, and `CopyTests.cpp` (Document
+  integrity, command lifecycle, functional/undo-redo/error-edge coverage
+  per `docs/design/COPY-001-Test-Design.md`).
+- Full suite: 34/34 passing, no regressions in existing Trim/Extend/
+  Transform/Command suites.
+### Design note
+DELETE-001 (next Sprint) deliberately does not share
+`EntityCreationCommandBase` -- Delete runs the opposite direction (Execute
+removes, Undo restores) and forcing it into the same base would be an
+awkward inheritance. It gets its own `ICommand` implementation, sharing
+only the `RemoveEntity`/`Restore` storage mechanics this Sprint introduced.
 ## [snap-intersection-001] - Snap query: Intersection (Line-Line, Line-Circle, Line-Arc, Circle-Circle, Circle-Arc, Arc-Arc)
 
 Consumes `GEOM-INTERSECTION-001`'s `geometry::Intersect(...)` family
