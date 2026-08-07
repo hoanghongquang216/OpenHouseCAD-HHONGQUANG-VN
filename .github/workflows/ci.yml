@@ -118,8 +118,8 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          timeout 5 ./modules/app/OpenHouseApp
-          status=$?
+          timeout 5 ./modules/app/OpenHouseApp || status=$?
+          status=${status:-0}
           if [ "$status" -ne 124 ]; then
             echo "Expected OpenHouseApp to still be running after 5s (timeout exit 124), got exit code $status instead."
             exit 1
