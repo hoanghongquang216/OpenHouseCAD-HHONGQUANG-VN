@@ -1,6 +1,6 @@
 # Qt6 Integration Checklist
 
-Status: **not started**. This document exists so that when Qt6 is
+Status: **in progress**. This document exists so that when Qt6 is
 available in a real development environment, integration is a mechanical
 checklist rather than a from-scratch investigation. See
 `docs/ARCHITECTURE_DECISION_RECORDS/ADR-0003-windowing-gui-stack.md` for
@@ -35,33 +35,44 @@ errors. If Qt6 isn't found, you should get the `FATAL_ERROR` message from
 the detection logic itself is correct in a real environment before
 building on top of it.
 
-## 3. APP-001: first real target (not yet written)
+## 3. APP-001 — Toolchain Verification
 
-Once step 2 is confirmed working, the first actual implementation task
-is a minimal `QMainWindow` that opens an empty window and runs the Qt
-event loop -- the smallest possible thing that proves the toolchain
-(Qt6 + CMake's `qt_add_executable`/AUTOMOC + the actual compiler) works
-end to end. This should be written and iterated on with real
-`cmake --build` feedback available, not authored blind and handed over
-untested.
+Status: ✅ Done
 
-Rough shape (**illustrative only, not final, not verified**):
-- `modules/app/CMakeLists.txt` gains a `qt_add_executable(OpenHouseApp ...)`
-  target once Qt6 is confirmed found.
-- `modules/app/src/main.cpp` with a `QApplication` + empty `QMainWindow`.
-- Link against `Qt6::Widgets` and (once relevant) `OpenHouse::Render` /
-  `OpenHouse::Geometry` for the eventual viewport.
-- `target_compile_features(... cxx_std_23)`, consistent with every other
-  target in this project.
+**Evidence**
+
+- Qt6 detected successfully during CMake configure.
+- `OpenHouseApp` target builds successfully.
+- Minimal Qt application (`QApplication` + `QMainWindow`) runs successfully on a real Qt6 installation.
+- This milestone verifies the Qt6 toolchain and basic application bootstrap only.
+
+**Observations (non-blocking)**
+
+- Runtime warnings related to the graphics environment (e.g. WSL2 `libEGL` / Mesa / ZINK) were observed but did not prevent the application from starting or displaying the main window.
+- These warnings are treated as environment-specific and are outside the scope of APP-001.
+
+**Out of scope**
+
+APP-001 does **not** validate:
+
+- `QRhiWidget` integration.
+- Rendering correctness or performance.
+- CAD viewport functionality.
+- CAD-scale performance characteristics.
+
+These items remain future implementation work and require separate execution-generated evidence.
 
 ## 4. CI
 
-`.github/workflows/ci.yml` currently builds without Qt6 and does not set
-`OPENHOUSE_BUILD_APP=ON`, so the app module is skipped in CI as it is
-locally by default. Once APP-001 exists and builds locally, CI will need
-a Qt6 installation step (e.g. via `jurplel/install-qt-action` or the
-platform's package manager) before the app target can be exercised in
-CI. This is explicitly a follow-up task, not bundled into APP-000/001.
+Status: patch committed (`31cf537`), workflow run pending verification.
+
+`.github/workflows/ci.yml` now installs Qt6 and sets
+`OPENHOUSE_BUILD_APP=ON` on a single representative leg (gcc/Release),
+rather than the full build matrix -- APP-001's scope is toolchain
+verification, not compiler-compatibility verification. This should be
+revisited once the app layer contains substantial Qt-dependent
+implementation. Actual GitHub Actions execution result for this change
+not yet confirmed.
 
 ## 5. Licensing verification
 
