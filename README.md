@@ -26,8 +26,9 @@ into Line/Arc segments; export writes HEADER/TABLES/ENTITIES, round-
 tripping layer color and linetype). Render can output SVG (points,
 lines, circles, arcs) and render a whole `Document` in one call,
 honoring per-layer color, line weight, line type, and visibility. The
-application layer (`modules/app`) is scaffolded for Qt6 but not yet
-implemented -- see
+application layer (`modules/app`, Qt6-based) has completed toolchain
+verification (APP-001) and CI build+smoke verification (APP-002/003);
+no CAD UI exists yet -- see
 `docs/ARCHITECTURE_DECISION_RECORDS/ADR-0003-windowing-gui-stack.md`.
 
 ## Where to go next
@@ -71,7 +72,7 @@ cmake -S . -B build -DOPENHOUSE_WARNINGS_AS_ERRORS=ON
 cmake --build build --parallel
 ```
 
-## Building the application layer (not yet implemented)
+## Building the application layer (toolchain verified, CAD UI not yet implemented)
 
 `modules/app` (Qt6-based, per ADR-0003) is scaffold-only -- skipped by
 default. Do not enable this unless you have Qt6 installed and are
