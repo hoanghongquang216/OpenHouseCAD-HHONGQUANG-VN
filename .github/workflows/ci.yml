@@ -100,6 +100,32 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
+      # APP-003: CI smoke verification. Confirms OpenHouseApp actually
+      # starts and runs (not just compiles) -- distinct from APP-002,
+      # which only proved the build succeeds. Deliberately does NOT
+      # modify main.cpp's runtime behavior (still a normal app.exec()
+      # GUI loop) -- APP-001 stays Accepted as-is; only the CI-side
+      # verification changes. `timeout` exit code 124 here means "still
+      # running after the observation window, no crash" -- that is what
+      # "smoke test passed" means for this milestone, not "the
+      # application itself exited with code 0". Revisit condition: once
+      # the app has a test harness / GUI integration test / a real
+      # test-driven shutdown mechanism, switch this to checking a true
+      # exit code 0 instead of relying on timeout.
+      - name: Smoke test OpenHouseApp (APP-003, representative leg only)
+        if: matrix.compiler == 'gcc' && matrix.build_type == 'Release'
+        working-directory: build
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          timeout 5 ./modules/app/OpenHouseApp
+          status=$?
+          if [ "$status" -ne 124 ]; then
+            echo "Expected OpenHouseApp to still be running after 5s (timeout exit 124), got exit code $status instead."
+            exit 1
+          fi
+          echo "OpenHouseApp started and ran for 5s without crashing (smoke test passed)."
+
       - name: Test
         working-directory: build
         run: ctest --output-on-failure --parallel
