@@ -5,7 +5,8 @@
 ## Current project status
 
 ```
-Phase:                 Spiral 2 (in progress -- Layer System done)
+Phase:                 Epic 4 (Editing) and Epic 6 (DXF Export) complete;
+                        Epic 5 (Drafting) not started
 Primary goal:          2D CAD
 Current architecture:  2D-first (3D frozen -- see ADR-0004)
 Development model:     Spiral Development (see docs/ROADMAP_EXECUTION.md)
@@ -15,11 +16,18 @@ A modular C++23 CAD kernel/application, developed via short vertical
 "Spirals" (see `docs/ROADMAP_EXECUTION.md`) rather than building each
 architectural layer to completion before the next. Current state:
 Foundation, Geometry (2D primitives through Arc2 and BoundingBox2),
-Math, and Document (with layers) are functional with test coverage;
-Render can output SVG (points, lines, circles, arcs) and render a whole
-`Document` in one call, honoring per-layer color, line weight, line
-type, and visibility. The application layer (`modules/app`) is
-scaffolded for Qt6 but not yet implemented -- see
+Math, and Document (layers, selection, and an ordered list of entities)
+are functional with test coverage. A Command/Undo-Redo system exists,
+covering Translate/Rotate/Scale, Trim, Extend, Copy, and Delete, each
+fully undoable/redoable. Snap (Endpoint/Midpoint/Center/Intersection) is
+implemented. DXF import and export both exist for the LINE/CIRCLE/ARC/
+LWPOLYLINE entity subset targeting DXF R12 (import explodes LWPOLYLINE
+into Line/Arc segments; export writes HEADER/TABLES/ENTITIES, round-
+tripping layer color and linetype). Render can output SVG (points,
+lines, circles, arcs) and render a whole `Document` in one call,
+honoring per-layer color, line weight, line type, and visibility. The
+application layer (`modules/app`) is scaffolded for Qt6 but not yet
+implemented -- see
 `docs/ARCHITECTURE_DECISION_RECORDS/ADR-0003-windowing-gui-stack.md`.
 
 ## Where to go next
@@ -93,8 +101,15 @@ modules/
   document/     Document: layers plus an ordered list of entities (a
                 shape + the layer it's on). Auto-creates layers on use,
                 always has a default layer "0", and Bounds() (zoom
-                extents) skips hidden layers. No Selection yet -- see
-                docs/ROADMAP_EXECUTION.md Spiral 2+.
+                extents) skips hidden layers. Also includes Selection
+                (SelectionSet), a Command/Undo-Redo system (Translate/
+                Rotate/Scale/Trim/Extend/Copy/Delete), and Snap
+                (Endpoint/Midpoint/Center/Intersection).
+  dxf/          DXF import (DxfReader) and export (DxfWriter) for the
+                LINE/CIRCLE/ARC/LWPOLYLINE entity subset, targeting DXF
+                R12. Import explodes LWPOLYLINE into Line2/Arc2 segments;
+                layer color and linetype round-trip through the TABLES/
+                LAYER section on export.
   render/       Zero-dependency SVG output (SvgDocument), plus
                 RenderToSvg(Document&) which honors each entity's layer
                 color, line weight, line type, and visibility -- the
@@ -130,9 +145,9 @@ cmake/
 
 Each module is a CMake target namespaced under `OpenHouse::` (e.g.
 `OpenHouse::Foundation`, `OpenHouse::Geometry`, `OpenHouse::Math`,
-`OpenHouse::Document`, `OpenHouse::Render`) for use by downstream targets
-via `target_link_libraries`. `modules/app` has no target yet (scaffold
-only).
+`OpenHouse::Document`, `OpenHouse::Dxf`, `OpenHouse::Render`) for use by
+downstream targets via `target_link_libraries`. `modules/app` has no
+target yet (scaffold only).
 
 See `docs/BUILD_AND_TEST.md` for full build/test/CI details beyond the
 quick-start commands above.
