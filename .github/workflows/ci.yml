@@ -53,6 +53,19 @@ jobs:
           echo "CXX=g++-13" >> "$GITHUB_ENV"
           echo "EXTRA_CMAKE_ARGS=" >> "$GITHUB_ENV"
 
+      # APP-002: Qt6 install + OPENHOUSE_BUILD_APP=ON, restricted to one
+      # representative leg (gcc/Release) rather than the full matrix.
+      # Rationale: APP-001's scope is toolchain verification only, not
+      # compiler-compatibility verification -- no evidence yet justifies
+      # the cost of building the (still near-empty) app module on every
+      # leg. Revisit once the app layer contains substantial Qt-dependent
+      # implementation (e.g. QRhiWidget viewport, docking, property UI).
+      - name: Install Qt6 (representative leg only)
+        if: matrix.compiler == 'gcc' && matrix.build_type == 'Release'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev
+
       # gcc-13's libstdc++ builds std::expected fine when compiled by GCC
       # itself (see build-and-test gcc legs, which pass), but Clang-18
       # against that same libstdc++ fails with "no member named 'expected'
@@ -81,6 +94,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DOPENHOUSE_WARNINGS_AS_ERRORS=ON
           -DBUILD_TESTING=ON
+          -DOPENHOUSE_BUILD_APP=${{ (matrix.compiler == 'gcc' && matrix.build_type == 'Release') && 'ON' || 'OFF' }}
           ${EXTRA_CMAKE_ARGS}
 
       - name: Build
